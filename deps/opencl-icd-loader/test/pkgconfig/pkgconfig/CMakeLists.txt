@@ -39,7 +39,7 @@ target_compile_options(${PROJECT_NAME}
 
 target_compile_definitions(${PROJECT_NAME}
   PRIVATE
-    CL_TARGET_OPENCL_VERSION=120
+    CL_TARGET_OPENCL_VERSION=300
 )
 
 include(CTest)
