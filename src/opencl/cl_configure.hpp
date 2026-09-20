@@ -17,8 +17,6 @@ namespace spla {
     struct Config {
         std::optional<bool>        help;
         std::optional<bool>        version;
-        std::optional<std::string> system_config_path;
-        std::optional<std::string> user_config_path;
         std::optional<int>         platform;
         std::optional<int>         device;
         std::optional<int>         queues;
@@ -37,29 +35,31 @@ namespace spla {
         VersionRequested,
 
         CliOrEnvParseError,
-        UserOrSystemConfParseError,
+        ParseConfError,
         OpenFileError,
 
         MissedParametrs,
         PlatformNotFound,
         DeviceNotFound,
-        InvalidConfigParams
+        InvalidConfigParams,
+        Error
     };
 
-    extern Config config_user_and_system;
+    extern Config config_default;
+    extern Config config_system;
+    extern Config config_user;
     extern Config config_cli_and_env;
     extern Config config_final;
 
-    std::string  get_home_directory();
-    std::string  get_default_system_config_path();
-    std::string  get_default_user_config_path();
-    std::string  find_first_json_file(const std::string& directory);
-    ConfigStatus load_from_file(const std::string& path, Config& cfg);
+    inline Config get_config() { return config_final; }
+    std::string   get_spla_version();
+    std::string   get_default_config_path();
+    std::string   get_default_system_config_path();
+    std::string   get_home_directory();
+    std::string   get_default_user_config_path();
 
-    ConfigStatus parse_system_and_user_conf(const Config& cli_env_config, Config& file_config);
-
-    std::string  get_spla_version();
     ConfigStatus parse_cli_and_env(int argc, char** argv, Config& cfg);
+    ConfigStatus parse_file(const std::string& path, Config& cfg);
 
     ConfigStatus check_platform_and_device(int platform_index, int device_index);
     ConfigStatus validate(const Config& cfg);
