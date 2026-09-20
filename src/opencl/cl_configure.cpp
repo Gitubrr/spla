@@ -1,6 +1,6 @@
 #include "cl_configure.hpp"
-#include "cl_accelerator.hpp"
 #include "CL/opencl.hpp"
+#include "cl_accelerator.hpp"
 
 namespace spla {
 

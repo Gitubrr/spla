@@ -178,6 +178,22 @@ endfunction()
 add_subdirectory(deps/robin_hood)
 add_subdirectory(deps/svector)
 
+message(STATUS "Add CLI11 as CLI/ENV parser")
+include(FetchContent)
+
+FetchContent_Declare(CLI11
+    GIT_REPOSITORY https://github.com/CLIUtils/CLI11.git
+    GIT_TAG        v2.4.2
+)
+FetchContent_MakeAvailable(CLI11)
+
+message(STATUS "Add nlohmann/json as JSON parser")
+FetchContent_Declare(nlohmann_json
+    GIT_REPOSITORY https://github.com/nlohmann/json.git
+    GIT_TAG        v3.11.3
+)
+FetchContent_MakeAvailable(nlohmann_json)
+
 if (SPLA_BUILD_OPENCL)
     if (SPLA_TARGET_MACOSX)
         message(STATUS "Add standard Apple OpenCL package")
@@ -235,6 +251,8 @@ set(SRC_OPENCL)
 
 if (SPLA_BUILD_OPENCL)
     set(SRC_OPENCL
+            src/opencl/cl_configure.cpp
+            src/opencl/cl_configure.hpp
             src/opencl/cl_debug.hpp
             src/opencl/cl_accelerator.cpp
             src/opencl/cl_accelerator.hpp
@@ -371,6 +389,8 @@ target_compile_definitions(spla PRIVATE SPLA_EXPORTS)
 
 target_link_libraries(spla PRIVATE robin_hood)
 target_link_libraries(spla PRIVATE svector)
+target_link_libraries(spla PRIVATE CLI11::CLI11)
+target_link_libraries(spla PRIVATE nlohmann_json::nlohmann_json)
 
 if (SPLA_BUILD_OPENCL)
     target_link_libraries(spla PUBLIC OpenCL)
