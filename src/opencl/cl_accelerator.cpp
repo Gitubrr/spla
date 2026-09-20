@@ -52,7 +52,7 @@ namespace spla {
         if (!acc) return Status::Error;
         return acc->init();
     }
-    
+
 
     Status CLAccelerator::init() {
         m_description = "no platform or device";
@@ -60,12 +60,12 @@ namespace spla {
         Config cfg;
         cfg = get_config();
 
-        int         platform_index = cfg.platform.value();
-        int         device_index   = cfg.device.value();
-        int         queues_count   = cfg.queues.value();
-        bool        profiling      = cfg.profiling.value();
-        std::string allocator_type = cfg.allocator.value();
-        size_t lin_allocator_size = 0;
+        int         platform_index     = cfg.platform.value();
+        int         device_index       = cfg.device.value();
+        int         queues_count       = cfg.queues.value();
+        bool        profiling          = cfg.profiling.value();
+        std::string allocator_type     = cfg.allocator.value();
+        size_t      lin_allocator_size = 0;
         if (allocator_type == "linear") {
             lin_allocator_size = cfg.allocator_size.value_or(0);
         }
@@ -131,8 +131,8 @@ namespace spla {
         m_counter_pool.reset();
         m_alloc_general.reset();
         m_alloc_linear.reset();
-        m_alloc_tmp = nullptr;
-        m_device    = cl::Device();
+        m_alloc_tmp         = nullptr;
+        m_device            = cl::Device();
         m_profiling_enabled = false;
 
         m_platform = available_platforms[index];
