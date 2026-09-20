@@ -395,7 +395,7 @@ target_link_libraries(spla PRIVATE nlohmann_json::nlohmann_json)
 if (SPLA_BUILD_OPENCL)
     target_link_libraries(spla PUBLIC OpenCL)
     target_link_libraries(spla PUBLIC OpenCL::HeadersCpp)
-    target_compile_definitions(spla PUBLIC CL_TARGET_OPENCL_VERSION=120)
+    target_compile_definitions(spla PUBLIC CL_TARGET_OPENCL_VERSION=300)
     list(APPEND SPLA_DEFINES SPLA_BUILD_OPENCL)
 endif ()
 
