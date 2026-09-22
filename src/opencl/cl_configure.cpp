@@ -2,6 +2,9 @@
 #include "CL/opencl.hpp"
 #include "cl_accelerator.hpp"
 
+#include <filesystem>
+#include <fstream>
+
 namespace spla {
 
     Config config_default;
@@ -10,20 +13,45 @@ namespace spla {
     Config config_cli_and_env;
     Config config_final;
 
-    void Config::merge(const Config& source) {
-        if (source.platform.has_value()) platform = source.platform;
-        if (source.device.has_value()) device = source.device;
-        if (source.queues.has_value()) queues = source.queues;
-        if (source.profiling.has_value()) profiling = source.profiling;
-        if (source.allocator.has_value()) allocator = source.allocator;
-        if (source.allocator_size.has_value()) allocator_size = source.allocator_size;
-        if (source.verbosity.has_value()) verbosity = source.verbosity;
+
+    void Profile::merge(const Profile& src) {
+        if (src.platform.has_value()) platform = src.platform;
+        if (src.device.has_value()) device = src.device;
+        if (src.queues.has_value()) queues = src.queues;
+        if (src.profiling.has_value()) profiling = src.profiling;
+        if (src.allocator.has_value()) allocator = src.allocator;
+        if (src.allocator_size.has_value()) allocator_size = src.allocator_size;
+        if (src.verbosity.has_value()) verbosity = src.verbosity;
+        if (src.extends.has_value()) extends = src.extends;
+    }
+
+
+    void Config::merge(const Config& src) {
+        if (src.platform.has_value()) platform = src.platform;
+        if (src.device.has_value()) device = src.device;
+        if (src.queues.has_value()) queues = src.queues;
+        if (src.profiling.has_value()) profiling = src.profiling;
+        if (src.allocator.has_value()) allocator = src.allocator;
+        if (src.allocator_size.has_value()) allocator_size = src.allocator_size;
+        if (src.verbosity.has_value()) verbosity = src.verbosity;
+
+        if (src.profile.has_value()) profile = src.profile;
+
+        if (src.profiles.has_value()) {
+            if (!profiles.has_value()) {
+                profiles = src.profiles;
+            } else {
+                for (const auto& [name, src_prof] : *src.profiles) {
+                    auto& dst_prof = (*profiles)[name];
+                    dst_prof.merge(src_prof);
+                }
+            }
+        }
     }
 
     void Config::reset() {
         *this = Config{};
     }
-
 
     std::string get_spla_version() {
         return "SPLA version: 0.0.0";
@@ -158,11 +186,16 @@ namespace spla {
                        "  3: All messages (info, warnings, errors)")
                 ->envname("SPLA_VERBOSITY");
 
+        app.add_option("-sP,--spla-profile", cfg.profile,
+                       "Configuration profile name\n"
+                       "Overrides base settings with the named profile.\n"
+                       "Config key: profile")
+                ->envname("SPLA_PROFILE");
+
         try {
             app.parse(argc, argv);
         } catch (const CLI::ParseError& e) {
-            std::cerr << "Failed to parse CLI/ENV" << std::endl;
-            app.exit(e);
+            std::cerr << "[spla:cli_env] ERROR: failed to parse: " << e.what() << std::endl;
             return ConfigStatus::CliOrEnvParseError;
         }
 
@@ -181,42 +214,52 @@ namespace spla {
 
 
     ConfigStatus parse_file(const std::string& path, Config& cfg) {
+
+        if (!std::filesystem::exists(path)) {
+            std::cerr << "[spla:config] WARNING: file not found: " << path << std::endl;
+            return ConfigStatus::Ok;
+        }
+
+        std::ifstream file(path);
+        if (!file.is_open()) {
+            std::cerr << "[spla:config] WARNING: cannot open: " << path << std::endl;
+            return ConfigStatus::OpenFileError;
+        }
+
         try {
-            std::ifstream file(path);
-            if (!file.is_open()) {
-                std::cerr << "Failed to open file: " << path << std::endl;
-                return ConfigStatus::OpenFileError;
-            }
+            nlohmann::json data = nlohmann::json::parse(file);
 
-            nlohmann::json config_data = nlohmann::json::parse(file);
+            if (data.contains("platform")) cfg.platform = data["platform"].get<int>();
+            if (data.contains("device")) cfg.device = data["device"].get<int>();
+            if (data.contains("queues")) cfg.queues = data["queues"].get<int>();
+            if (data.contains("profiling")) cfg.profiling = data["profiling"].get<bool>();
+            if (data.contains("allocator")) cfg.allocator = data["allocator"].get<std::string>();
+            if (data.contains("allocator_size")) cfg.allocator_size = data["allocator_size"].get<size_t>();
+            if (data.contains("verbosity")) cfg.verbosity = data["verbosity"].get<int>();
+            if (data.contains("profile")) cfg.profile = data["profile"].get<std::string>();
 
-            if (config_data.contains("platform")) {
-                cfg.platform = config_data["platform"].get<int>();
-            }
-            if (config_data.contains("device")) {
-                cfg.device = config_data["device"].get<int>();
-            }
-            if (config_data.contains("queues")) {
-                cfg.queues = config_data["queues"].get<int>();
-            }
-            if (config_data.contains("profiling")) {
-                cfg.profiling = config_data["profiling"].get<bool>();
-            }
-            if (config_data.contains("allocator")) {
-                cfg.allocator = config_data["allocator"].get<std::string>();
-            }
-            if (config_data.contains("allocator_size")) {
-                cfg.allocator_size = config_data["allocator_size"].get<size_t>();
-            }
-            if (config_data.contains("verbosity")) {
-                cfg.verbosity = config_data["verbosity"].get<int>();
+            if (data.contains("profiles")) {
+                std::map<std::string, Profile> profiles;
+                for (auto& [name, p] : data["profiles"].items()) {
+                    Profile prof;
+                    if (p.contains("platform")) prof.platform = p["platform"].get<int>();
+                    if (p.contains("device")) prof.device = p["device"].get<int>();
+                    if (p.contains("queues")) prof.queues = p["queues"].get<int>();
+                    if (p.contains("profiling")) prof.profiling = p["profiling"].get<bool>();
+                    if (p.contains("allocator")) prof.allocator = p["allocator"].get<std::string>();
+                    if (p.contains("allocator_size")) prof.allocator_size = p["allocator_size"].get<size_t>();
+                    if (p.contains("verbosity")) prof.verbosity = p["verbosity"].get<int>();
+                    if (p.contains("extends")) prof.extends = p["extends"].get<std::vector<std::string>>();
+                    profiles[name] = prof;
+                }
+                cfg.profiles = profiles;
             }
 
             return ConfigStatus::Ok;
 
         } catch (const nlohmann::json::exception& e) {
-            std::cerr << "Failed to parse config files" << std::endl;
-            std::cerr << "Error parsing JSON file '" << path << "': " << e.what() << std::endl;
+            std::cerr << "[spla:config] ERROR: failed to parse '"
+                      << path << "': " << e.what() << std::endl;
             return ConfigStatus::ParseConfError;
         }
     }
@@ -225,7 +268,8 @@ namespace spla {
     ConfigStatus check_platform_and_device(int platform_index, int device_index) {
 
         if (platform_index < 0) {
-            std::cerr << "Error: platform must be >= 0 (got " << platform_index << ")" << std::endl;
+            std::cerr << "[spla:opencl] ERROR: platform must be >= 0 (got "
+                      << platform_index << ")" << std::endl;
             return ConfigStatus::InvalidConfigParams;
         }
 
@@ -233,17 +277,20 @@ namespace spla {
         cl::Platform::get(&platforms);
 
         if (platforms.empty()) {
-            std::cerr << "Error: no platform to select for OpenCL acceleration" << std::endl;
+            std::cerr << "[spla:opencl] ERROR: no platform available" << std::endl;
             return ConfigStatus::PlatformNotFound;
         }
 
         if (static_cast<size_t>(platform_index) >= platforms.size()) {
-            std::cerr << "Error: platform index out of range (got " << platform_index << ", max " << platforms.size() - 1 << ")" << std::endl;
+            std::cerr << "[spla:opencl] ERROR: platform index out of range (got "
+                      << platform_index << ", max " << platforms.size() - 1 << ")"
+                      << std::endl;
             return ConfigStatus::PlatformNotFound;
         }
 
         if (device_index < 0) {
-            std::cerr << "Error: device must be >= 0 (got " << device_index << ")" << std::endl;
+            std::cerr << "[spla:opencl] ERROR: device must be >= 0 (got "
+                      << device_index << ")" << std::endl;
             return ConfigStatus::InvalidConfigParams;
         }
 
@@ -251,12 +298,15 @@ namespace spla {
         platforms[platform_index].getDevices(CL_DEVICE_TYPE_ALL, &devices);
 
         if (devices.empty()) {
-            std::cerr << "Error: no device to select for OpenCL acceleration" << std::endl;
+            std::cerr << "[spla:opencl] ERROR: no device available on platform "
+                      << platform_index << std::endl;
             return ConfigStatus::DeviceNotFound;
         }
 
         if (static_cast<size_t>(device_index) >= devices.size()) {
-            std::cerr << "Error: device index out of range (got " << device_index << ", max " << devices.size() - 1 << ")" << std::endl;
+            std::cerr << "[spla:opencl] ERROR: device index out of range (got "
+                      << device_index << ", max " << devices.size() - 1 << ")"
+                      << std::endl;
             return ConfigStatus::DeviceNotFound;
         }
 
@@ -264,35 +314,37 @@ namespace spla {
     }
 
 
-    ConfigStatus validate(const Config& cfg) {
+    ConfigStatus validation(const Config& cfg) {
 
         if (!cfg.platform.has_value()) {
-            std::cerr << "Error: platform is required" << std::endl;
-            return ConfigStatus::MissedParametrs;
+            std::cerr << "[spla:validation] ERROR: required: platform" << std::endl;
+            return ConfigStatus::MissedParameters;
         }
         if (!cfg.device.has_value()) {
-            std::cerr << "Error: device is required" << std::endl;
-            return ConfigStatus::MissedParametrs;
+            std::cerr << "[spla:validation] ERROR: required: device" << std::endl;
+            return ConfigStatus::MissedParameters;
         }
         if (!cfg.queues.has_value()) {
-            std::cerr << "Error: queues is required" << std::endl;
-            return ConfigStatus::MissedParametrs;
+            std::cerr << "[spla:validation] ERROR: required: queues" << std::endl;
+            return ConfigStatus::MissedParameters;
         }
         if (!cfg.profiling.has_value()) {
-            std::cerr << "Error: profiling is required" << std::endl;
-            return ConfigStatus::MissedParametrs;
+            std::cerr << "[spla:validation] ERROR: required: profiling" << std::endl;
+            return ConfigStatus::MissedParameters;
         }
         if (!cfg.allocator.has_value()) {
-            std::cerr << "Error: allocator is required" << std::endl;
-            return ConfigStatus::MissedParametrs;
-        }
-        if (cfg.allocator.value() == "linear" && !cfg.allocator_size.has_value()) {
-            std::cerr << "Error: allocator_size is required for linear allocator" << std::endl;
-            return ConfigStatus::MissedParametrs;
+            std::cerr << "[spla:validation] ERROR: required: allocator" << std::endl;
+            return ConfigStatus::MissedParameters;
         }
         if (!cfg.verbosity.has_value()) {
-            std::cerr << "Error: verbosity is required" << std::endl;
-            return ConfigStatus::MissedParametrs;
+            std::cerr << "[spla:validation] ERROR: required: verbosity" << std::endl;
+            return ConfigStatus::MissedParameters;
+        }
+
+        if (cfg.allocator.value() == "linear" && !cfg.allocator_size.has_value()) {
+            std::cerr << "[spla:validation] ERROR: allocator_size is required for 'linear' allocator"
+                      << std::endl;
+            return ConfigStatus::MissedParameters;
         }
 
         ConfigStatus status;
@@ -303,26 +355,96 @@ namespace spla {
         }
 
         if (*cfg.queues <= 0) {
-            std::cerr << "Error: queues must be > 0 (got " << *cfg.queues << ")" << std::endl;
+            std::cerr << "[spla:validation] ERROR: queues must be > 0 (got "
+                      << *cfg.queues << ")" << std::endl;
             return ConfigStatus::InvalidConfigParams;
         }
 
         if (*cfg.allocator != "linear" && *cfg.allocator != "general") {
-            std::cerr << "Error: allocator must be 'linear' or 'general' (got '" << *cfg.allocator << "')" << std::endl;
+            std::cerr << "[spla:validation] ERROR: allocator must be 'linear' or 'general' (got '"
+                      << *cfg.allocator << "')" << std::endl;
             return ConfigStatus::InvalidConfigParams;
         }
 
-        if (*cfg.allocator == "linear") {
-            if (*cfg.allocator_size <= 0) {
-                std::cerr << "Error: allocator_size must be > 0 for linear allocator (got " << *cfg.allocator_size << ")" << std::endl;
-                return ConfigStatus::InvalidConfigParams;
-            }
+        if (*cfg.allocator == "linear" && *cfg.allocator_size <= 0) {
+            std::cerr << "[spla:validation] ERROR: allocator_size must be > 0 for 'linear' (got "
+                      << *cfg.allocator_size << ")" << std::endl;
+            return ConfigStatus::InvalidConfigParams;
         }
 
         if (*cfg.verbosity < 0 || *cfg.verbosity > 3) {
-            std::cerr << "Error: verbosity must be between 0 and 3 (got " << *cfg.verbosity << ")" << std::endl;
+            std::cerr << "[spla:validation] ERROR: verbosity must be in [0, 3] (got "
+                      << *cfg.verbosity << ")" << std::endl;
             return ConfigStatus::InvalidConfigParams;
         }
+
+        return ConfigStatus::Ok;
+    }
+
+
+    Profile apply_extends(const std::map<std::string, Profile>& profiles,
+                          const std::string&                    name,
+                          std::set<std::string>&                stack) {
+        if (stack.count(name)) {
+            throw std::runtime_error("Profile cycle detected: " + name);
+        }
+        stack.insert(name);
+
+        auto it = profiles.find(name);
+        if (it == profiles.end()) {
+            throw std::runtime_error("Profile not found: " + name);
+        }
+
+        const Profile& prof = it->second;
+        Profile        result;
+
+        if (prof.extends) {
+            for (const auto& parent_name : *prof.extends) {
+                Profile parent = apply_extends(profiles, parent_name, stack);
+                result.merge(parent);
+            }
+        }
+
+        result.merge(prof);
+
+        stack.erase(name);
+        return result;
+    }
+
+    ConfigStatus apply_profile(Config& cfg) {
+
+        if (!cfg.profile.has_value()) return ConfigStatus::Ok;
+
+        std::string profile_name = *cfg.profile;
+
+        if (!cfg.profiles || !cfg.profiles->count(profile_name)) {
+            std::cerr << "[spla:profile] ERROR: not found: " << profile_name << std::endl;
+            return ConfigStatus::ProfileNotFound;
+        }
+
+        std::set<std::string> stack;
+        Profile               resolved;
+        try {
+            resolved = apply_extends(*cfg.profiles, profile_name, stack);
+        } catch (const std::runtime_error& e) {
+            std::string msg = e.what();
+            if (msg.find("cycle") != std::string::npos) {
+                std::cerr << "[spla:profile] ERROR: cycle detected: "
+                          << profile_name << std::endl;
+                return ConfigStatus::ProfileCycle;
+            }
+            std::cerr << "[spla:profile] ERROR: " << msg << std::endl;
+            return ConfigStatus::ProfileNotFound;
+        }
+
+        if (resolved.platform) cfg.platform = resolved.platform;
+        if (resolved.device) cfg.device = resolved.device;
+        if (resolved.queues) cfg.queues = resolved.queues;
+        if (resolved.profiling) cfg.profiling = resolved.profiling;
+        if (resolved.allocator) cfg.allocator = resolved.allocator;
+        if (resolved.allocator_size) cfg.allocator_size = resolved.allocator_size;
+        if (resolved.verbosity) cfg.verbosity = resolved.verbosity;
+
         return ConfigStatus::Ok;
     }
 
@@ -337,26 +459,38 @@ namespace spla {
         ConfigStatus status;
 
         status = parse_cli_and_env(argc, argv, config_cli_and_env);
-        if (status == ConfigStatus::CliOrEnvParseError) return status;
+        if (status != ConfigStatus::Ok) return status;
 
         status = parse_file(get_default_user_config_path(), config_user);
         if (status == ConfigStatus::ParseConfError) return status;
+        if (status == ConfigStatus::OpenFileError) {
+            std::cerr << "[spla:configure] WARNING: cannot open user config, skipping" << std::endl;
+        }
 
         status = parse_file(get_default_system_config_path(), config_system);
         if (status == ConfigStatus::ParseConfError) return status;
+        if (status == ConfigStatus::OpenFileError) {
+            std::cerr << "[spla:configure] WARNING: cannot open system config, skipping" << std::endl;
+        }
 
         status = parse_file(get_default_config_path(), config_default);
         if (status == ConfigStatus::ParseConfError) return status;
-
+        if (status == ConfigStatus::OpenFileError) {
+            std::cerr << "[spla:configure] WARNING: cannot open default config, skipping" << std::endl;
+        }
 
         config_final.merge(config_default);
         config_final.merge(config_system);
         config_final.merge(config_user);
         config_final.merge(config_cli_and_env);
 
-        status = validate(config_final);
+        status = apply_profile(config_final);
         if (status != ConfigStatus::Ok) return status;
 
+        status = validation(config_final);
+        if (status != ConfigStatus::Ok) return status;
+
+        std::cerr << "[spla:configure]: configuration complete" << std::endl;
         return ConfigStatus::Ok;
     }
 }// namespace spla

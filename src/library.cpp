@@ -143,6 +143,12 @@ namespace spla {
         return Status::Ok;
     }
 
+    Status Library::set_verbosity(int verbosity) {
+        m_logger->set_verbosity(verbosity);
+        LOG_MSG(Status::Ok, "set verbosity: " << verbosity);
+        return Status::Ok;
+    }
+
     Status Library::set_default_callback() {
         auto callback = [](spla::Status       status,
                            const std::string& msg,

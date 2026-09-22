@@ -56,6 +56,12 @@
 
 namespace spla {
 
+    struct InitResult {
+        Status       status;
+        ConfigStatus config_status;
+    };
+    InitResult init_with_configure(int argc, char** argv);
+
     /**
      * @addtogroup internal
      * @{
@@ -70,7 +76,6 @@ namespace spla {
         CLAccelerator();
         ~CLAccelerator() override;
 
-        Status init_with_configure(int argc, char** argv);
         Status init() override;
         Status set_platform(int index) override;
         Status set_device(int index) override;

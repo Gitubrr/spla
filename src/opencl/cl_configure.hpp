@@ -1,7 +1,10 @@
 #pragma once
 
+#include <map>
 #include <optional>
+#include <set>
 #include <string>
+#include <vector>
 
 #include "CLI/CLI.hpp"
 #include <nlohmann/json.hpp>
@@ -14,6 +17,19 @@
 
 namespace spla {
 
+    struct Profile {
+        std::optional<int>                      platform;
+        std::optional<int>                      device;
+        std::optional<int>                      queues;
+        std::optional<bool>                     profiling;
+        std::optional<std::string>              allocator;
+        std::optional<size_t>                   allocator_size;
+        std::optional<int>                      verbosity;
+        std::optional<std::vector<std::string>> extends;
+
+        void merge(const Profile& source);
+    };
+
     struct Config {
         std::optional<bool>        help;
         std::optional<bool>        version;
@@ -25,24 +41,31 @@ namespace spla {
         std::optional<size_t>      allocator_size;
         std::optional<int>         verbosity;
 
+        std::optional<std::string>                    profile;
+        std::optional<std::map<std::string, Profile>> profiles;
+
         void merge(const Config& source);
         void reset();
     };
 
+
     enum ConfigStatus {
         Ok,
+
         HelpRequested,
         VersionRequested,
-
         CliOrEnvParseError,
+
         ParseConfError,
         OpenFileError,
 
-        MissedParametrs,
+        ProfileNotFound,
+        ProfileCycle,
+
+        MissedParameters,
         PlatformNotFound,
         DeviceNotFound,
-        InvalidConfigParams,
-        Error
+        InvalidConfigParams
     };
 
     extern Config config_default;
@@ -51,18 +74,23 @@ namespace spla {
     extern Config config_cli_and_env;
     extern Config config_final;
 
-    inline Config get_config() { return config_final; }
-    std::string   get_spla_version();
-    std::string   get_default_config_path();
-    std::string   get_default_system_config_path();
-    std::string   get_home_directory();
-    std::string   get_default_user_config_path();
+    std::string get_spla_version();
+
+    std::string get_default_config_path();
+    std::string get_default_system_config_path();
+    std::string get_home_directory();
+    std::string get_default_user_config_path();
 
     ConfigStatus parse_cli_and_env(int argc, char** argv, Config& cfg);
     ConfigStatus parse_file(const std::string& path, Config& cfg);
 
     ConfigStatus check_platform_and_device(int platform_index, int device_index);
-    ConfigStatus validate(const Config& cfg);
+    ConfigStatus validation(const Config& cfg);
+
+    Profile      apply_extends(const std::map<std::string, Profile>& profiles,
+                               const std::string&                    name,
+                               std::set<std::string>&                stack);
+    ConfigStatus apply_profile(Config& cfg);
 
     ConfigStatus configure(int argc, char** argv);
 

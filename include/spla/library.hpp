@@ -115,6 +115,21 @@ namespace spla {
         SPLA_API Status set_message_callback(MessageCallback callback);
 
         /**
+         * @brief Set verbosity level for library logger
+         *
+         * Controls which messages are shown:
+         *   0 - no output
+         *   1 - errors only
+         *   2 - errors + warnings
+         *   3 - all messages (info, warnings, errors)
+         *
+         * @param verbosity Verbosity level [0, 3]
+         *
+         * @return Function call status
+         */
+        SPLA_API Status set_verbosity(int verbosity);
+
+        /**
          * @brief Sets default library callback to log messages to console
          *
          * @return Function call status

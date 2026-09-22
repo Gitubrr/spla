@@ -31,15 +31,48 @@
 
 namespace spla {
 
-    void Logger::log_msg(Status status, const std::string& msg, const std::string& file, const std::string& function, int line) {
+    static int status_to_level(Status status) {
+        switch (status) {
+            case Status::Error:
+            case Status::PlatformNotFound:
+            case Status::DeviceNotFound:
+            case Status::InvalidArgument:
+            case Status::CompilationError:
+                return 1;
+
+            case Status::NoAcceleration:
+            case Status::InvalidState:
+            case Status::NoValue:
+            case Status::NotImplemented:
+                return 2;
+
+            case Status::Ok:
+            default:
+                return 3;
+        }
+    }
+
+    void Logger::log_msg(Status status, const std::string& msg,
+                         const std::string& file, const std::string& function, int line) {
+
+        int level = status_to_level(status);
+        if (level > m_verbosity) return;
+
         std::lock_guard       guard(m_mutex);
         std::filesystem::path file_path(file);
-        if (m_callback) m_callback(status, msg, file_path.filename().string(), function, line);
+        if (m_callback) {
+            m_callback(status, msg, file_path.filename().string(), function, line);
+        }
     }
 
     void Logger::set_msg_callback(MessageCallback callback) {
         std::lock_guard guard(m_mutex);
         m_callback = std::move(callback);
+    }
+
+    void Logger::set_verbosity(int verbosity) {
+        std::lock_guard guard(m_mutex);
+        m_verbosity = verbosity;
     }
 
 }// namespace spla
