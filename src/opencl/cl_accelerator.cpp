@@ -44,8 +44,7 @@ namespace spla {
         InitResult result;
         result.config_status = configure(argc, argv);
 
-        if (result.config_status == ConfigStatus::HelpRequested ||
-            result.config_status == ConfigStatus::VersionRequested) {
+        if (result.config_status == ConfigStatus::VersionRequested) {
             result.status = Status::Ok;
             return result;
         }
@@ -67,13 +66,25 @@ namespace spla {
 
 
     Status CLAccelerator::init() {
-        int         platform_index = config_final.platform.value();
-        int         device_index   = config_final.device.value();
-        int         queues_count   = config_final.queues.value();
+
+        std::string backend = config_final.backend.value();
+        int         platform_index;
+        int         device_index;
+        if (backend == "by_index") {
+            platform_index = config_final.platform_index.value();
+            device_index   = config_final.device_index.value();
+        }
+        std::string if_gpu_unavailable;
+        if (backend != "cpu") {
+            if_gpu_unavailable = config_final.if_gpu_unavailable.value();
+        }
+        int         queues_count   = config_final.queues_count.value();
         bool        profiling      = config_final.profiling.value();
-        std::string allocator_type = config_final.allocator.value();
-        size_t      lin_allocator_size;
-        if (allocator_type == "linear") lin_allocator_size = config_final.allocator_size.value();
+        std::string allocator_type = config_final.allocator_type.value();
+        size_t      linear_alloc_size;
+        if (allocator_type == "linear") {
+            linear_alloc_size = config_final.linear_alloc_size.value();
+        }
         int verbosity = config_final.verbosity.value();
 
         Library::get()->set_verbosity(verbosity);
@@ -87,7 +98,7 @@ namespace spla {
         LOG_MSG(Status::Ok, "  profiling = " << (profiling ? "true" : "false"));
         LOG_MSG(Status::Ok, "  allocator = " << allocator_type);
         if (allocator_type == "linear") {
-            LOG_MSG(Status::Ok, "  alloc_size= " << lin_allocator_size);
+            LOG_MSG(Status::Ok, "  alloc_size= " << linear_alloc_size);
         }
         LOG_MSG(Status::Ok, "  verbosity = " << verbosity);
 
@@ -97,7 +108,7 @@ namespace spla {
         set_queues_count(queues_count);
 
         if (allocator_type == "linear") {
-            set_linear_allocator(lin_allocator_size);
+            set_linear_allocator(linear_alloc_size);
         } else {
             set_general_allocator();
         }

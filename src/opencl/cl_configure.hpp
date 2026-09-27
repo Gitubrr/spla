@@ -45,12 +45,17 @@
 namespace spla {
 
     struct Profile {
-        std::optional<int>                      platform;
-        std::optional<int>                      device;
-        std::optional<int>                      queues;
+        std::optional<std::string> backend;
+
+        std::optional<int> platform_index;
+        std::optional<int> device_index;
+
+        std::optional<std::string> if_gpu_unavailable;
+
+        std::optional<int>                      queues_count;
         std::optional<bool>                     profiling;
-        std::optional<std::string>              allocator;
-        std::optional<size_t>                   allocator_size;
+        std::optional<std::string>              allocator_type;
+        std::optional<size_t>                   linear_alloc_size;
         std::optional<int>                      verbosity;
         std::optional<std::vector<std::string>> extends;
 
@@ -58,14 +63,19 @@ namespace spla {
     };
 
     struct Config {
-        std::optional<bool>        help;
-        std::optional<bool>        version;
-        std::optional<int>         platform;
-        std::optional<int>         device;
-        std::optional<int>         queues;
+        std::optional<bool> version;
+
+        std::optional<std::string> backend;
+
+        std::optional<int> platform_index;
+        std::optional<int> device_index;
+
+        std::optional<std::string> if_gpu_unavailable;
+
+        std::optional<int>         queues_count;
         std::optional<bool>        profiling;
-        std::optional<std::string> allocator;
-        std::optional<size_t>      allocator_size;
+        std::optional<std::string> allocator_type;
+        std::optional<size_t>      linear_alloc_size;
         std::optional<int>         verbosity;
 
         std::optional<std::string>                    profile;
@@ -79,7 +89,6 @@ namespace spla {
     enum ConfigStatus {
         Ok,
 
-        HelpRequested,
         VersionRequested,
         CliOrEnvParseError,
 
@@ -90,8 +99,6 @@ namespace spla {
         ProfileCycle,
 
         MissedParameters,
-        PlatformNotFound,
-        DeviceNotFound,
         InvalidConfigParams
     };
 
@@ -111,7 +118,6 @@ namespace spla {
     ConfigStatus parse_cli_and_env(int argc, char** argv, Config& cfg);
     ConfigStatus parse_file(const std::string& path, Config& cfg);
 
-    ConfigStatus check_platform_and_device(int platform_index, int device_index);
     ConfigStatus validation(const Config& cfg);
 
     Profile      apply_extends(const std::map<std::string, Profile>& profiles,

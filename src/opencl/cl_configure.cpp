@@ -42,24 +42,28 @@ namespace spla {
 
 
     void Profile::merge(const Profile& src) {
-        if (src.platform.has_value()) platform = src.platform;
-        if (src.device.has_value()) device = src.device;
-        if (src.queues.has_value()) queues = src.queues;
+        if (src.backend.has_value()) backend = src.backend;
+        if (src.platform_index.has_value()) platform_index = src.platform_index;
+        if (src.device_index.has_value()) device_index = src.device_index;
+        if (src.if_gpu_unavailable.has_value()) if_gpu_unavailable = src.if_gpu_unavailable;
+        if (src.queues_count.has_value()) queues_count = src.queues_count;
         if (src.profiling.has_value()) profiling = src.profiling;
-        if (src.allocator.has_value()) allocator = src.allocator;
-        if (src.allocator_size.has_value()) allocator_size = src.allocator_size;
+        if (src.allocator_type.has_value()) allocator_type = src.allocator_type;
+        if (src.linear_alloc_size.has_value()) linear_alloc_size = src.linear_alloc_size;
         if (src.verbosity.has_value()) verbosity = src.verbosity;
         if (src.extends.has_value()) extends = src.extends;
     }
 
 
     void Config::merge(const Config& src) {
-        if (src.platform.has_value()) platform = src.platform;
-        if (src.device.has_value()) device = src.device;
-        if (src.queues.has_value()) queues = src.queues;
+        if (src.backend.has_value()) backend = src.backend;
+        if (src.platform_index.has_value()) platform_index = src.platform_index;
+        if (src.device_index.has_value()) device_index = src.device_index;
+        if (src.if_gpu_unavailable.has_value()) if_gpu_unavailable = src.if_gpu_unavailable;
+        if (src.queues_count.has_value()) queues_count = src.queues_count;
         if (src.profiling.has_value()) profiling = src.profiling;
-        if (src.allocator.has_value()) allocator = src.allocator;
-        if (src.allocator_size.has_value()) allocator_size = src.allocator_size;
+        if (src.allocator_type.has_value()) allocator_type = src.allocator_type;
+        if (src.linear_alloc_size.has_value()) linear_alloc_size = src.linear_alloc_size;
         if (src.verbosity.has_value()) verbosity = src.verbosity;
 
         if (src.profile.has_value()) profile = src.profile;
@@ -171,46 +175,67 @@ namespace spla {
     ConfigStatus parse_cli_and_env(int argc, char** argv, Config& cfg) {
         CLI::App app{"SPLA configuration"};
 
-        app.add_flag("-sh,--spla-help", cfg.help, "Show help and exit");
+        app.set_help_flag("-sh,--spla-help", "Show help and exit");
         app.add_flag("-sv,--spla-version", cfg.version, "Show version and exit");
 
-        app.add_option("-sp,--spla-platform", cfg.platform,
+        app.add_option("-sb,--spla-backend", cfg.backend,
+                       "Device type to use:\n"
+                       "  gpu       - only GPU\n"
+                       "  cpu       - only CPU\n"
+                       "  any       - any available device\n"
+                       "  by_index  - select by platform_index and device_index\n"
+                       "Config key: backend")
+                ->envname("SPLA_BACKEND");
+
+        app.add_option("-sp,--spla-platform-index", cfg.platform_index,
                        "OpenCL platform index\n"
-                       "Config key: platform")
-                ->envname("SPLA_OPENCL_PLATFORM");
+                       "Used only with backend=by_index.\n"
+                       "Config key: platform_index")
+                ->envname("SPLA_PLATFORM_INDEX");
 
-        app.add_option("-sd,--spla-device", cfg.device,
+        app.add_option("-sd,--spla-device-index", cfg.device_index,
                        "OpenCL device index\n"
-                       "Config key: device")
-                ->envname("SPLA_OPENCL_DEVICE");
+                       "Used only with backend=by_index.\n"
+                       "Config key: device_index")
+                ->envname("SPLA_DEVICE_INDEX");
 
-        app.add_option("-sq,--spla-queues", cfg.queues,
+        app.add_option("-sf,--spla-if-gpu-unavailable", cfg.if_gpu_unavailable,
+                       "Behavior when GPU is unavailable:\n"
+                       "  use_cpu - switch to CPU\n"
+                       "  abort   - return error\n"
+                       "Config key: if_gpu_unavailable")
+                ->envname("SPLA_IF_GPU_UNAVAILABLE");
+
+        app.add_option("-sq,--spla-queues-count", cfg.queues_count,
                        "Number of command queues\n"
-                       "Config key: queues")
-                ->envname("SPLA_QUEUES");
+                       "Config key: queues_count")
+                ->envname("SPLA_QUEUES_COUNT");
 
         app.add_flag("-pr,--spla-profiling", cfg.profiling,
                      "Enable profiling of command queues\n"
-                     "Config key: profiling\n")
+                     "Config key: profiling")
                 ->envname("SPLA_PROFILING");
 
-        app.add_option("-sa,--spla-allocator", cfg.allocator,
-                       "Allocator type: linear or general\n"
-                       "Config key: allocator")
-                ->envname("SPLA_ALLOCATOR");
+        app.add_option("-sa,--spla-allocator-type", cfg.allocator_type,
+                       "Allocator type:\n"
+                       "  general\n"
+                       "  linear \n"
+                       "Config key: allocator_type")
+                ->envname("SPLA_ALLOCATOR_TYPE");
 
-        app.add_option("-as,--spla-allocator-size", cfg.allocator_size,
+        app.add_option("-as,--spla-linear-alloc-size", cfg.linear_alloc_size,
                        "Linear allocator size in bytes\n"
-                       "Required for 'linear' allocator. Ignored for 'general'.\n"
-                       "Config key: allocator_size")
-                ->envname("SPLA_ALLOCATOR_SIZE");
+                       "Required for allocator_type=linear. Ignored for general.\n"
+                       "Config key: linear_alloc_size")
+                ->envname("SPLA_LINEAR_ALLOC_SIZE");
 
         app.add_option("-sV,--spla-verbosity", cfg.verbosity,
                        "Verbosity level:\n"
-                       "  0: No output\n"
-                       "  1: Errors only\n"
-                       "  2: Errors + warnings\n"
-                       "  3: All messages (info, warnings, errors)")
+                       "  0 - no output\n"
+                       "  1 - errors only\n"
+                       "  2 - errors and warnings\n"
+                       "  3 - all messages\n"
+                       "Config key: verbosity")
                 ->envname("SPLA_VERBOSITY");
 
         app.add_option("-sP,--spla-profile", cfg.profile,
@@ -224,11 +249,6 @@ namespace spla {
         } catch (const CLI::ParseError& e) {
             std::cerr << "[spla:cli_env] ERROR: failed to parse: " << e.what() << std::endl;
             return ConfigStatus::CliOrEnvParseError;
-        }
-
-        if (cfg.help) {
-            std::cout << app.help() << std::endl;
-            return ConfigStatus::HelpRequested;
         }
 
         if (cfg.version) {
@@ -256,27 +276,43 @@ namespace spla {
         try {
             nlohmann::json data = nlohmann::json::parse(file);
 
-            if (data.contains("platform")) cfg.platform = data["platform"].get<int>();
-            if (data.contains("device")) cfg.device = data["device"].get<int>();
-            if (data.contains("queues")) cfg.queues = data["queues"].get<int>();
+            if (data.contains("backend")) cfg.backend = data["backend"].get<std::string>();
+
+            if (data.contains("platform_index")) cfg.platform_index = data["platform_index"].get<int>();
+            if (data.contains("device_index")) cfg.device_index = data["device_index"].get<int>();
+
+            if (data.contains("if_gpu_unavailable")) cfg.if_gpu_unavailable = data["if_gpu_unavailable"].get<std::string>();
+
+            if (data.contains("queues_count")) cfg.queues_count = data["queues_count"].get<int>();
             if (data.contains("profiling")) cfg.profiling = data["profiling"].get<bool>();
-            if (data.contains("allocator")) cfg.allocator = data["allocator"].get<std::string>();
-            if (data.contains("allocator_size")) cfg.allocator_size = data["allocator_size"].get<size_t>();
+            if (data.contains("allocator_type")) cfg.allocator_type = data["allocator_type"].get<std::string>();
+            if (data.contains("linear_alloc_size")) cfg.linear_alloc_size = data["linear_alloc_size"].get<size_t>();
+
             if (data.contains("verbosity")) cfg.verbosity = data["verbosity"].get<int>();
+
             if (data.contains("profile")) cfg.profile = data["profile"].get<std::string>();
 
             if (data.contains("profiles")) {
                 std::map<std::string, Profile> profiles;
                 for (auto& [name, p] : data["profiles"].items()) {
                     Profile prof;
-                    if (p.contains("platform")) prof.platform = p["platform"].get<int>();
-                    if (p.contains("device")) prof.device = p["device"].get<int>();
-                    if (p.contains("queues")) prof.queues = p["queues"].get<int>();
+
+                    if (p.contains("backend")) prof.backend = p["backend"].get<std::string>();
+
+                    if (p.contains("platform_index")) prof.platform_index = p["platform_index"].get<int>();
+                    if (p.contains("device_index")) prof.device_index = p["device_index"].get<int>();
+
+                    if (p.contains("if_gpu_unavailable")) prof.if_gpu_unavailable = p["if_gpu_unavailable"].get<std::string>();
+
+                    if (p.contains("queues_count")) prof.queues_count = p["queues_count"].get<int>();
                     if (p.contains("profiling")) prof.profiling = p["profiling"].get<bool>();
-                    if (p.contains("allocator")) prof.allocator = p["allocator"].get<std::string>();
-                    if (p.contains("allocator_size")) prof.allocator_size = p["allocator_size"].get<size_t>();
+                    if (p.contains("allocator_type")) prof.allocator_type = p["allocator_type"].get<std::string>();
+                    if (p.contains("linear_alloc_size")) prof.linear_alloc_size = p["linear_alloc_size"].get<size_t>();
+
                     if (p.contains("verbosity")) prof.verbosity = p["verbosity"].get<int>();
+
                     if (p.contains("extends")) prof.extends = p["extends"].get<std::vector<std::string>>();
+
                     profiles[name] = prof;
                 }
                 cfg.profiles = profiles;
@@ -292,113 +328,117 @@ namespace spla {
     }
 
 
-    ConfigStatus check_platform_and_device(int platform_index, int device_index) {
-
-        if (platform_index < 0) {
-            std::cerr << "[spla:opencl] ERROR: platform must be >= 0 (got "
-                      << platform_index << ")" << std::endl;
-            return ConfigStatus::InvalidConfigParams;
-        }
-
-        std::vector<cl::Platform> platforms;
-        cl::Platform::get(&platforms);
-
-        if (platforms.empty()) {
-            std::cerr << "[spla:opencl] ERROR: no platform available" << std::endl;
-            return ConfigStatus::PlatformNotFound;
-        }
-
-        if (static_cast<size_t>(platform_index) >= platforms.size()) {
-            std::cerr << "[spla:opencl] ERROR: platform index out of range (got "
-                      << platform_index << ", max " << platforms.size() - 1 << ")"
-                      << std::endl;
-            return ConfigStatus::PlatformNotFound;
-        }
-
-        if (device_index < 0) {
-            std::cerr << "[spla:opencl] ERROR: device must be >= 0 (got "
-                      << device_index << ")" << std::endl;
-            return ConfigStatus::InvalidConfigParams;
-        }
-
-        std::vector<cl::Device> devices;
-        platforms[platform_index].getDevices(CL_DEVICE_TYPE_ALL, &devices);
-
-        if (devices.empty()) {
-            std::cerr << "[spla:opencl] ERROR: no device available on platform "
-                      << platform_index << std::endl;
-            return ConfigStatus::DeviceNotFound;
-        }
-
-        if (static_cast<size_t>(device_index) >= devices.size()) {
-            std::cerr << "[spla:opencl] ERROR: device index out of range (got "
-                      << device_index << ", max " << devices.size() - 1 << ")"
-                      << std::endl;
-            return ConfigStatus::DeviceNotFound;
-        }
-
-        return ConfigStatus::Ok;
-    }
-
-
     ConfigStatus validation(const Config& cfg) {
+        if (!cfg.backend.has_value()) {
+            std::cerr << "[spla:validation] ERROR: required parameter missing: backend" << std::endl;
+            return ConfigStatus::MissedParameters;
+        }
 
-        if (!cfg.platform.has_value()) {
-            std::cerr << "[spla:validation] ERROR: required: platform" << std::endl;
+        const std::string& backend = *cfg.backend;
+        if (backend != "gpu" && backend != "cpu" &&
+            backend != "any" && backend != "by_index") {
+            std::cerr << "[spla:validation] ERROR: backend must be "
+                      << "'gpu', 'cpu', 'any' or 'by_index' (got '" << backend << "')" << std::endl;
+            return ConfigStatus::InvalidConfigParams;
+        }
+
+        if (backend == "by_index") {
+            if (!cfg.platform_index.has_value()) {
+                std::cerr << "[spla:validation] ERROR: platform_index is required "
+                          << "when backend='by_index'" << std::endl;
+                return ConfigStatus::MissedParameters;
+            }
+            if (!cfg.device_index.has_value()) {
+                std::cerr << "[spla:validation] ERROR: device_index is required "
+                          << "when backend='by_index'" << std::endl;
+                return ConfigStatus::MissedParameters;
+            }
+
+            if (cfg.platform_index < 0) {
+                std::cerr << "[spla:opencl] ERROR: platform must be >= 0 (got "
+                          << *cfg.platform_index << ")" << std::endl;
+                return ConfigStatus::InvalidConfigParams;
+            }
+            if (cfg.device_index < 0) {
+                std::cerr << "[spla:opencl] ERROR: device must be >= 0 (got "
+                          << *cfg.device_index << ")" << std::endl;
+                return ConfigStatus::InvalidConfigParams;
+            }
+        }
+
+        if (backend != "cpu") {
+            if (!cfg.if_gpu_unavailable.has_value()) {
+                std::cerr << "[spla:validation] ERROR: if_gpu_unavailable is required "
+                          << "when backend= 'any', 'gpu', 'by_index'" << std::endl;
+                return ConfigStatus::MissedParameters;
+            }
+            const std::string& behavior = *cfg.if_gpu_unavailable;
+            if (behavior != "use_cpu" && behavior != "abort") {
+                std::cerr << "[spla:validation] ERROR: if_gpu_unavailable must be "
+                          << "'use_cpu' or 'abort' (got '" << behavior << "')" << std::endl;
+                return ConfigStatus::InvalidConfigParams;
+            }
+        }
+        if (backend == "cpu" && cfg.if_gpu_unavailable.has_value()) {
+            std::cerr << "[spla:validation] WARNING: if_gpu_unavailable "
+                      << "ignored for backend='" << backend << "'" << std::endl;
+        }
+
+
+        if (backend != "by_index") {
+            if (cfg.platform_index.has_value() || cfg.device_index.has_value()) {
+                std::cerr << "[spla:validation] WARNING: platform_index/device_index "
+                          << "ignored for backend='" << backend << "'" << std::endl;
+            }
+        }
+
+
+        if (!cfg.queues_count.has_value()) {
+            std::cerr << "[spla:validation] ERROR: required parameter missing: queues_count" << std::endl;
             return ConfigStatus::MissedParameters;
         }
-        if (!cfg.device.has_value()) {
-            std::cerr << "[spla:validation] ERROR: required: device" << std::endl;
-            return ConfigStatus::MissedParameters;
+        if (*cfg.queues_count <= 0) {
+            std::cerr << "[spla:validation] ERROR: queues_count must be > 0 (got "
+                      << *cfg.queues_count << ")" << std::endl;
+            return ConfigStatus::InvalidConfigParams;
         }
-        if (!cfg.queues.has_value()) {
-            std::cerr << "[spla:validation] ERROR: required: queues" << std::endl;
-            return ConfigStatus::MissedParameters;
-        }
+
+
         if (!cfg.profiling.has_value()) {
-            std::cerr << "[spla:validation] ERROR: required: profiling" << std::endl;
+            std::cerr << "[spla:validation] ERROR: required parameter missing: profiling" << std::endl;
             return ConfigStatus::MissedParameters;
         }
-        if (!cfg.allocator.has_value()) {
-            std::cerr << "[spla:validation] ERROR: required: allocator" << std::endl;
+
+
+        if (!cfg.allocator_type.has_value()) {
+            std::cerr << "[spla:validation] ERROR: required parameter missing: allocator_type" << std::endl;
             return ConfigStatus::MissedParameters;
         }
+        if (*cfg.allocator_type != "general" && *cfg.allocator_type != "linear") {
+            std::cerr << "[spla:validation] ERROR: allocator_type must be "
+                      << "'general' or 'linear' (got '" << *cfg.allocator_type << "')" << std::endl;
+            return ConfigStatus::InvalidConfigParams;
+        }
+
+
+        if (*cfg.allocator_type == "linear") {
+            if (!cfg.linear_alloc_size.has_value()) {
+                std::cerr << "[spla:validation] ERROR: linear_alloc_size is required "
+                          << "when allocator_type='linear'" << std::endl;
+                return ConfigStatus::MissedParameters;
+            }
+            if (*cfg.linear_alloc_size <= 0) {
+                std::cerr << "[spla:validation] ERROR: linear_alloc_size must be > 0 (got "
+                          << *cfg.linear_alloc_size << ")" << std::endl;
+                return ConfigStatus::InvalidConfigParams;
+            }
+        }
+
+
         if (!cfg.verbosity.has_value()) {
-            std::cerr << "[spla:validation] ERROR: required: verbosity" << std::endl;
+            std::cerr << "[spla:validation] ERROR: required parameter missing: verbosity" << std::endl;
             return ConfigStatus::MissedParameters;
         }
-
-        if (cfg.allocator.value() == "linear" && !cfg.allocator_size.has_value()) {
-            std::cerr << "[spla:validation] ERROR: allocator_size is required for 'linear' allocator"
-                      << std::endl;
-            return ConfigStatus::MissedParameters;
-        }
-
-        ConfigStatus status;
-
-        status = check_platform_and_device(*cfg.platform, *cfg.device);
-        if (status != ConfigStatus::Ok) {
-            return status;
-        }
-
-        if (*cfg.queues <= 0) {
-            std::cerr << "[spla:validation] ERROR: queues must be > 0 (got "
-                      << *cfg.queues << ")" << std::endl;
-            return ConfigStatus::InvalidConfigParams;
-        }
-
-        if (*cfg.allocator != "linear" && *cfg.allocator != "general") {
-            std::cerr << "[spla:validation] ERROR: allocator must be 'linear' or 'general' (got '"
-                      << *cfg.allocator << "')" << std::endl;
-            return ConfigStatus::InvalidConfigParams;
-        }
-
-        if (*cfg.allocator == "linear" && *cfg.allocator_size <= 0) {
-            std::cerr << "[spla:validation] ERROR: allocator_size must be > 0 for 'linear' (got "
-                      << *cfg.allocator_size << ")" << std::endl;
-            return ConfigStatus::InvalidConfigParams;
-        }
-
         if (*cfg.verbosity < 0 || *cfg.verbosity > 3) {
             std::cerr << "[spla:validation] ERROR: verbosity must be in [0, 3] (got "
                       << *cfg.verbosity << ")" << std::endl;
@@ -464,12 +504,14 @@ namespace spla {
             return ConfigStatus::ProfileNotFound;
         }
 
-        if (resolved.platform) cfg.platform = resolved.platform;
-        if (resolved.device) cfg.device = resolved.device;
-        if (resolved.queues) cfg.queues = resolved.queues;
+        if (resolved.backend) cfg.backend = resolved.backend;
+        if (resolved.if_gpu_unavailable) cfg.if_gpu_unavailable = resolved.if_gpu_unavailable;
+        if (resolved.platform_index) cfg.platform_index = resolved.platform_index;
+        if (resolved.device_index) cfg.device_index = resolved.device_index;
+        if (resolved.queues_count) cfg.queues_count = resolved.queues_count;
         if (resolved.profiling) cfg.profiling = resolved.profiling;
-        if (resolved.allocator) cfg.allocator = resolved.allocator;
-        if (resolved.allocator_size) cfg.allocator_size = resolved.allocator_size;
+        if (resolved.allocator_type) cfg.allocator_type = resolved.allocator_type;
+        if (resolved.linear_alloc_size) cfg.linear_alloc_size = resolved.linear_alloc_size;
         if (resolved.verbosity) cfg.verbosity = resolved.verbosity;
 
         return ConfigStatus::Ok;

@@ -55,7 +55,6 @@
 #define SPLA_OPENCL_DEVICE   "SPLA_OPENCL_DEVICE"
 
 namespace spla {
-
     struct InitResult {
         Status       status;
         ConfigStatus config_status;
@@ -71,6 +70,7 @@ namespace spla {
      * @class CLAccelerator
      * @brief Single-device OpenCL acceleration implementation
      */
+
     class CLAccelerator final : public Accelerator {
     public:
         CLAccelerator();
