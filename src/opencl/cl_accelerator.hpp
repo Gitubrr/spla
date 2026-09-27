@@ -37,6 +37,7 @@
 #include <vector>
 
 #include <svector.hpp>
+#include "cl_config_status.hpp"
 
 #ifndef SPLA_RELEASE
     #define CL_HPP_ENABLE_EXCEPTIONS

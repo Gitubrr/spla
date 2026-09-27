@@ -35,6 +35,7 @@
 
 #include "CLI/CLI.hpp"
 #include <nlohmann/json.hpp>
+#include "cl_config_status.hpp"
 
 #ifdef _WIN32
 #elif defined(__APPLE__) || defined(__linux__) || defined(__unix__)
@@ -85,22 +86,6 @@ namespace spla {
         void reset();
     };
 
-
-    enum ConfigStatus {
-        Ok,
-
-        VersionRequested,
-        CliOrEnvParseError,
-
-        ParseConfError,
-        OpenFileError,
-
-        ProfileNotFound,
-        ProfileCycle,
-
-        MissedParameters,
-        InvalidConfigParams
-    };
 
     extern Config config_default;
     extern Config config_system;
