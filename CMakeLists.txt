@@ -206,6 +206,13 @@ if (SPLA_BUILD_OPENCL)
         add_library(OpenCL INTERFACE)
         target_include_directories(OpenCL INTERFACE ${OpenCL_INCLUDE_DIRS})
         target_link_libraries(OpenCL INTERFACE ${OpenCL_LIBRARIES})
+
+        # HPP bindings — из системного framework
+        message(STATUS "Use system OpenCL HPP bindings (macOS)")
+        add_library(HeadersCpp INTERFACE)
+        add_library(OpenCL::HeadersCpp ALIAS HeadersCpp)
+        target_include_directories(HeadersCpp INTERFACE ${OpenCL_INCLUDE_DIRS})
+        target_link_libraries(HeadersCpp INTERFACE OpenCL::Headers)
     else ()
         message(STATUS "Add Khronos OpenCL C API header files")
         add_subdirectory(deps/opencl-headers)
@@ -215,14 +222,14 @@ if (SPLA_BUILD_OPENCL)
         set(OPENCL_ICD_LOADER_BUILD_SHARED_LIBS OFF CACHE BOOL "" FORCE)
         set(OPENCL_ICD_LOADER_BUILD_TESTING OFF CACHE BOOL "" FORCE)
         add_subdirectory(deps/opencl-icd-loader)
+
+        # HPP bindings — из deps (только для Linux/Windows)
+        message(STATUS "Add Khronos OpenCL HPP bindings")
+        add_library(HeadersCpp INTERFACE)
+        add_library(OpenCL::HeadersCpp ALIAS HeadersCpp)
+        target_include_directories(HeadersCpp INTERFACE deps/opencl-headers-hpp/include)
+        target_link_libraries(HeadersCpp INTERFACE OpenCL::Headers)
     endif ()
-
-
-    message(STATUS "Add Khronos OpenCL HPP bindings")
-    add_library(HeadersCpp INTERFACE)
-    add_library(OpenCL::HeadersCpp ALIAS HeadersCpp)
-    target_include_directories(HeadersCpp INTERFACE deps/opencl-headers-hpp/include)
-    target_link_libraries(HeadersCpp INTERFACE OpenCL::Headers)
 endif ()
 
 if (SPLA_BUILD_EXAMPLES)
@@ -251,6 +258,7 @@ set(SRC_OPENCL)
 
 if (SPLA_BUILD_OPENCL)
     set(SRC_OPENCL
+            src/opencl/cl_config_status.hpp
             src/opencl/cl_configure.cpp
             src/opencl/cl_configure.hpp
             src/opencl/cl_debug.hpp
@@ -395,7 +403,7 @@ target_link_libraries(spla PRIVATE nlohmann_json::nlohmann_json)
 if (SPLA_BUILD_OPENCL)
     target_link_libraries(spla PUBLIC OpenCL)
     target_link_libraries(spla PUBLIC OpenCL::HeadersCpp)
-    target_compile_definitions(spla PUBLIC CL_TARGET_OPENCL_VERSION=300)
+    target_compile_definitions(spla PUBLIC CL_TARGET_OPENCL_VERSION=120)
     list(APPEND SPLA_DEFINES SPLA_BUILD_OPENCL)
 endif ()
 
