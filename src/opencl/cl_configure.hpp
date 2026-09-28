@@ -34,8 +34,8 @@
 #include <vector>
 
 #include "CLI/CLI.hpp"
-#include <nlohmann/json.hpp>
 #include "cl_config_status.hpp"
+#include <nlohmann/json.hpp>
 
 #ifdef _WIN32
 #elif defined(__APPLE__) || defined(__linux__) || defined(__unix__)
