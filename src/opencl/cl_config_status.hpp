@@ -29,19 +29,19 @@
 
 namespace spla {
 
-enum ConfigStatus {
-    Ok,
-    HelpRequested,
-    VersionRequested,
-    CliOrEnvParseError,
-    ParseConfError,
-    OpenFileError,
-    ProfileNotFound,
-    ProfileCycle,
-    MissedParameters,
-    PlatformNotFound,
-    DeviceNotFound,
-    InvalidConfigParams
-};
+    enum ConfigStatus {
+        Ok,
+        HelpRequested,
+        VersionRequested,
+        CliOrEnvParseError,
+        ParseConfError,
+        OpenFileError,
+        ProfileNotFound,
+        ProfileCycle,
+        MissedParameters,
+        PlatformNotFound,
+        DeviceNotFound,
+        InvalidConfigParams
+    };
 
-}  // namespace spla
+}// namespace spla

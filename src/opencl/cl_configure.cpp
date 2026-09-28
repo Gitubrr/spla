@@ -26,7 +26,6 @@
 /**********************************************************************************/
 
 #include "cl_configure.hpp"
-#include "CL/opencl.hpp"
 #include "cl_accelerator.hpp"
 
 #include <filesystem>
