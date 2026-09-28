@@ -196,23 +196,22 @@ FetchContent_MakeAvailable(nlohmann_json)
 
 if (SPLA_BUILD_OPENCL)
     if (SPLA_TARGET_MACOSX)
-        message(STATUS "Add standard Apple OpenCL package")
-        find_package(OpenCL REQUIRED)
+        message(STATUS "Use Apple OpenCL framework for linking, headers from deps")
+        find_library(OPENCL_FRAMEWORK OpenCL REQUIRED)
 
         add_library(OpenCLHeaders INTERFACE)
         add_library(OpenCL::Headers ALIAS OpenCLHeaders)
-        target_include_directories(OpenCLHeaders INTERFACE ${OpenCL_INCLUDE_DIRS})
+        target_include_directories(OpenCLHeaders INTERFACE
+            ${CMAKE_CURRENT_SOURCE_DIR}/deps/opencl-headers)
 
-        add_library(OpenCL INTERFACE)
-        target_include_directories(OpenCL INTERFACE ${OpenCL_INCLUDE_DIRS})
-        target_link_libraries(OpenCL INTERFACE ${OpenCL_LIBRARIES})
-
-        # HPP bindings — из системного framework
-        message(STATUS "Use system OpenCL HPP bindings (macOS)")
         add_library(HeadersCpp INTERFACE)
         add_library(OpenCL::HeadersCpp ALIAS HeadersCpp)
-        target_include_directories(HeadersCpp INTERFACE ${OpenCL_INCLUDE_DIRS})
+        target_include_directories(HeadersCpp INTERFACE
+            ${CMAKE_CURRENT_SOURCE_DIR}/deps/opencl-headers-hpp/include)
         target_link_libraries(HeadersCpp INTERFACE OpenCL::Headers)
+
+        add_library(OpenCL INTERFACE)
+        target_link_libraries(OpenCL INTERFACE ${OPENCL_FRAMEWORK})
     else ()
         message(STATUS "Add Khronos OpenCL C API header files")
         add_subdirectory(deps/opencl-headers)
@@ -403,7 +402,10 @@ target_link_libraries(spla PRIVATE nlohmann_json::nlohmann_json)
 if (SPLA_BUILD_OPENCL)
     target_link_libraries(spla PUBLIC OpenCL)
     target_link_libraries(spla PUBLIC OpenCL::HeadersCpp)
-    target_compile_definitions(spla PUBLIC CL_TARGET_OPENCL_VERSION=120)
+    target_compile_definitions(spla PUBLIC
+        CL_TARGET_OPENCL_VERSION=120
+        CL_HPP_TARGET_OPENCL_VERSION=120
+        CL_HPP_MINIMUM_OPENCL_VERSION=120)
     list(APPEND SPLA_DEFINES SPLA_BUILD_OPENCL)
 endif ()
 
