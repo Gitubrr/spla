@@ -42,44 +42,12 @@ $ spla --softcheck
 ```
 
 ## Конфигурационный файл
-Файл конфигурации `spla_conf.json` состоит из двух частей:
-
-- `current_config` - имя конфигурации, которую вы хотите применить;
-
-- `configs` - словарь именованных конфигураций.
-
-Каждая конфигурация - это именованный набор параметров библиотеки. Все параметры библиотеки описываются внутри конфигураций.
-
-Файл конфигурации, предоставляющийся библиотекой, имеет следующую структуру:
-```json
-{
-    "current_config": "default",
-
-    "configs": {
-        "default": {
-            "backend": "gpu",
-            "if_gpu_unavailable": "use_cpu",
-
-            "queues_count": 1,
-            "profiling": false,
-            "allocator_type": "general",
-
-            "verbosity": 2
-        }
-    }
-}
-```
-
-### Параметры верхнего уровня
-| Параметр | Тип | Описание | Допустимые значения |
-| :--- | :--- | :--- | :--- |
-| current_config | string | Имя применяемой конфигурации | имя из `configs` (со всех уровней) |
-| configs | object | Словарь именованных конфигураций | { "name": { ... } } |
+Конфигурационные файлы состоят из набора конфигураций, каждая конфигурация - это именованный набор параметров библиотеки, все параметры библиотеки описываются внутри конфигураций.
 
 ### Параметры конфигурации
 | Параметр | Тип | Описание | Допустимые значения |
 | :--- | :--- | :--- | :--- |
-| extends | array of string | Список конфигураций-родителей | имена из `configs` (со всех уровней) |
+| extends | array of string | Список конфигураций-родителей | имена конфигураций (со всех уровней) |
 | backend | string | На каком устройстве работать | `"gpu"` - только GPU<br>`"cpu"` - только CPU<br>`"any"` - любое доступное устройство<br>`"by_index"` - выбрать по индексам ниже |
 | platform_index | int | Индекс OpenCL платформы<br> Используются только при backend: `"by_index"`<br> При других значениях backend - игнорируются | ≥ 0 |
 | device_index | int | Индекс устройства внутри платформы<br> Используются только при backend: `"by_index"`<br> При других значениях backend - игнорируются | ≥ 0 |
@@ -90,21 +58,38 @@ $ spla --softcheck
 | linear_alloc_size | int | Размер линейного аллокатора (байт)<br> Используются только при allocator_type: `"linear"` | ≥ 0 |
 | verbosity | int | Уровень логирования | `0` - нет вывода,<br>`1` - только ошибки,<br>`2` - ошибки, предупреждения,<br>`3` - ошибки, предупреждения, дополнительная информация |
 
+Файл конфигурации, предоставляющийся библиотекой, имеет следующую структуру:
+```json
+{
+    "default": {
+        "backend": "gpu",
+        "if_gpu_unavailable": "use_cpu",
+
+        "queues_count": 1,
+        "profiling": false,
+        "allocator_type": "general",
+
+        "verbosity": 2
+    }
+}
+```
 ## Настройка
 
 Если параметры по умолчанию вас не устраивают, вы можете настроить библиотеку. Способы конфигурирования перечислены в порядке убывания приоритета:
 
 1. Аргументы командной строки.
 2. Переменные окружения.
-3. Пользовательский конфигурационный файл.
-4. Системный конфигурационный файл.
-5. Конфигурационный файл, поставляющийся библиотекой.
+3. Файл, путь к которому пользователь может задать явно.
+- > При необходимости пользователь может явно указать файл с конфигурациями, который не находится по пути пользовательского и системного конфигурационного файла.
+4. Пользовательский конфигурационный файл.
+5. Системный конфигурационный файл.
+6. Конфигурационный файл, поставляющийся библиотекой.
 
 ### Расположение конфигурационных файлов
 
 **Конфигурационный файл с параметрами по умолчанию:**
 
-Файл конфигурации с параметрами по умолчанию поставляется вместе с пакетом pyspla и располагается внутри директории установленного Python-пакета. 
+>Файл конфигурации с параметрами по умолчанию поставляется вместе с пакетом pyspla и располагается внутри директории установленного Python-пакета. 
 Расположение зависит от способа установки пакета (глобально, --user, в виртуальном окружении).
 
 **Системный конфигурационный файл:**
@@ -117,43 +102,48 @@ Windows:	`%ProgramData%\spla\spla_conf.json`
 macOS:	`~/Library/Application Support/spla/spla_conf.json` \
 Windows:	`%APPDATA%\spla\spla_conf.json`
 
+**Пользовательский конфигурационный файл, задавающийся явно:**
+
+>На усмотрение пользователя.
+
 
 ## Конфигурации
 
-Конфигурации позволяют хранить несколько наборов настроек в одном файле конфигурации и переключаться между ними при запуске. Это удобно, когда одну и ту же программу нужно запускать в разных режимах.
+Конфигурации позволяют хранить несколько наборов настроек в одном конфигурационном файле и переключаться между ними при запуске. Это удобно, когда одну и ту же программу нужно запускать в разных режимах.
+
+Если пользователь не укажет конфигурацию, то будет взята конфигурация `"default"` из файла, который идет с библиотекой.
 
 ### Пример конфигурационного файла
 ```json
 {
-    "configs": {
+    "cpu":  { 
+        "backend": "cpu", 
+        "queues_count": 1,
+        "profiling": false,
+        "allocator_type": "general",
+        "verbosity": 2
+        },
 
-        "cpu":  { 
-            "backend": "cpu", 
-            "queues_count": 1,
-            "profiling": false,
-            "allocator_type": "general",
-            "verbosity": 2
-            },
-        "gpu0":  { 
-            "backend": "gpu", 
-            "if_gpu_unavailable": "use_cpu",
-            "queues_count": 2,
-            "profiling": true,
-            "allocator_type": "linear",
-            "linear_alloc_size": 8,
-            "verbosity": 0
-            },
-        "gpu1":  { 
-            "backend": "by_index", 
-            "platform_index": 0, 
-            "device_index": 2,
-            "if_gpu_unavailable": "abort",
-            "queues_count": 1,
-            "profiling": false,
-            "allocator_type": "general",
-            "verbosity": 3
-            }
-    }
+    "gpu0":  { 
+        "backend": "gpu", 
+        "if_gpu_unavailable": "use_cpu",
+        "queues_count": 2,
+        "profiling": true,
+        "allocator_type": "linear",
+        "linear_alloc_size": 8,
+        "verbosity": 0
+        },
+
+    "gpu1":  { 
+        "backend": "by_index", 
+        "platform_index": 0, 
+        "device_index": 2,
+        "if_gpu_unavailable": "abort",
+        "queues_count": 1,
+        "profiling": false,
+        "allocator_type": "general",
+        "verbosity": 3
+        }
 }
 ```
 ### Запуск
@@ -175,40 +165,30 @@ SPLA_CONFIG=gpu1 ./program
 После этого применяются параметры самой выбранной конфигурации, которые переопределяют всё, что было задано раньше.
 Если конфигурация не содержит `extends`, она полностью изолирована: применяются только её собственные параметры.
 
-### Пример конфигурационного файла
+### Примеры конфигурационных файлов
 
 ``` json
 {
-        "gpu0": { 
-            "backend": "by_index", 
-            "platform_index": 0, 
-            "device_index": 0,
-            "if_gpu_unavailable": "abort",
-            "queues_count": 1,
-            "profiling": false
-            },
+    "gpu0": { 
+        "backend": "by_index", 
+        "platform_index": 0, 
+        "device_index": 0,
+        "if_gpu_unavailable": "abort",
+        "queues_count": 1,
+        "profiling": false
+        },
 
-        "debug": { 
-            "profiling": true, // будет переопределен конфигурацией "gpu0"
-            "allocator_type": "general",
-            "verbosity": 3
-            },
+    "debug": { 
+        "profiling": true, // будет переопределен конфигурацией "gpu0"
+        "allocator_type": "general",
+        "verbosity": 3
+        },
 
-        "debug_gpu0": {
-            "extends": ["debug", "gpu0"]
+    "debug_gpu0": {
+        "extends": ["debug", "gpu0"]
         }
-    
 }
 ```
-### Запуск
-```bash
-SPLA_CONFIG=debug_gpu0 ./program
-```
-Или через CLI:
-```bash
-./program --spla-config=debug_gpu0
-```
-
 ### Итоговый набор параметров
 
 | Параметр | Значение | Источник |
@@ -221,49 +201,74 @@ SPLA_CONFIG=debug_gpu0 ./program
 | profiling | `false` | конфигурация `gpu0` |
 | allocator_type | `general` | конфигурация `debug` |
 | verbosity | `3` | конфигурация `debug` |
+### Запуск
+```bash
+SPLA_CONFIG=debug_gpu0 ./program
+```
+Или через CLI:
+```bash
+./program --spla-config=debug_gpu0
+```
 ---
+```json
+{    
+    "gpu0": { 
+        "backend": "by_index", 
+        "platform_index": 0, 
+        "device_index": 0,
+        "if_gpu_unavailable": "abort",
+        "queues_count": 1,
+        "profiling": false,
+        "allocator_type": "general",
+        "verbosity": 3
+        },
 
+    "gpu0_profiling_true": { 
+        "extends": ["gpu0"],
+        "profiling": true // переопределит "profiling": false конфигурации "gpu0"
+        }
+}
+```
+### Запуск
+```bash
+SPLA_CONFIG=gpu0_profiling_true ./program
+```
+Или через CLI:
+```bash
+./program --spla-config=gpu0_profiling_true
+```
+Конфигурационные файлы состоят из списка именованных конфигураций. Конфигурации из разных файлов (по умолчанию, системного, пользовательского, пользовательского с явно указанным путем) сливаются по именам: одноимённые конфигурации объединяются по параметрам, а уникальные добавляются. Итоговый набор используется для разрешения `extends` и выбора активной конфигурации.
 
-`configs` - словарь именованных конфигураций. Конфигурации из разных файлов (по умолчанию, системного, пользовательского) сливаются по именам: одноимённые конфигурации объединяются по параметрам, а уникальные добавляются. Итоговый набор используется для разрешения `extends` и выбора активной конфигурации.
-
-Имена в `extends` берутся из всех конфигураций, определённых в конфигурационгом файле по умолчанию, системном и пользовательском файлах конфигурации. Это позволяет наследовать конфигурации, определённые на другом уровне. Например, пользовательская конфигурация может наследовать `"default"` из заводского файла, не дублируя его параметры.
+Имена в `extends` берутся из всех конфигураций, определённых в конфигурационгом файле по умолчанию, системном, пользовательском и пользовательском с явно указанным путем файлах конфигурации. Это позволяет наследовать конфигурации, определённые на другом уровне. Например, пользовательская конфигурация может наследовать `"default"` из файла по умолчанию, не дублируя его параметры.
 
 ### Пример конфигурационного файла
 Конфигурационный файл по умолчанию:
 ``` json
 {
-    "current_config": "default",
+    "default": {
+        "backend": "gpu", // переопределится на "by_index"
+        "if_gpu_unavailable": "use_cpu", // переопределится на "abort"
 
-    "configs": {
-        "default": {
-            "backend": "gpu", // переопределен
-            "if_gpu_unavailable": "use_cpu", // переопределен
+        "queues_count": 1,
+        "profiling": false, // переопределится на true
+        "allocator_type": "general",
 
-            "queues_count": 1,
-            "profiling": false, // переопределен
-            "allocator_type": "general",
-
-            "verbosity": 2
+        "verbosity": 2
         }
-    }
 }
 ```
 Конфигурационный файл, созданный пользователем:
 ```json
 {
-    "current_config": "gpu0",
-
-    "configs": {
-        "gpu0": { 
-            "extends": ["default"],
-            "backend": "by_index", // переопределяет "backend": "gpu"
-            "platform_index": 0, 
-            "device_index": 0,
-            "if_gpu_unavailable": "abort", // переопределяет "if_gpu_unavailable": "use_cpu"
-            "queues_count": 1,
-            "profiling": true
-            }
-    }
+    "gpu0": { 
+        "extends": ["default"],
+        "backend": "by_index", // переопределяет "backend": "gpu"
+        "platform_index": 0, 
+        "device_index": 0,
+        "if_gpu_unavailable": "abort", // переопределяет "if_gpu_unavailable": "use_cpu"
+        "queues_count": 1,
+        "profiling": true
+        }
 }
 ```
 
@@ -287,6 +292,7 @@ SPLA_CONFIG=debug_gpu0 ./program
   1. Быстрый запуск без настройки.
   2. Выбор между CPU и GPU без указания индексов.
   3. Многократный запуск на разных устройствах с разными параметрами.
+  4. Запуск с конфигурациями из произвольного файла.
 
 ## Быстрый запуск без настройки
 
@@ -302,11 +308,9 @@ SPLA_CONFIG=debug_gpu0 ./program
 Тип устройства задаётся параметром backend
 ```json
 {
-    "configs": {
-        "gpu_only": { "backend": "gpu" }, // "gpu" - использовать первое доступное GPU;
-        "cpu_only": { "backend": "cpu" }, // "cpu" - использовать CPU;
-        "any":      { "backend": "any" }  // "any" - использовать первое доступное устройство любого типа.
-    }
+    "gpu_only": { "backend": "gpu" }, // "gpu" - использовать первое доступное GPU;
+    "cpu_only": { "backend": "cpu" }, // "cpu" - использовать CPU;
+    "any":      { "backend": "any" }  // "any" - использовать первое доступное устройство любого типа.
 }
 ```
 
@@ -318,15 +322,13 @@ SPLA_CONFIG=debug_gpu0 ./program
 
 ```json
 {
-    "configs": {
-        "gpu_or_cpu": {
-            "backend": "gpu",
-            "if_gpu_unavailable": "use_cpu"
-        },
-        "gpu_only": {
-            "backend": "gpu",
-            "if_gpu_unavailable": "abort"
-        }
+    "gpu_or_cpu": {
+        "backend": "gpu",
+        "if_gpu_unavailable": "use_cpu"
+    },
+    "gpu_only": {
+        "backend": "gpu",
+        "if_gpu_unavailable": "abort"
     }
 }
 ```
@@ -339,43 +341,39 @@ SPLA_CONFIG=debug_gpu0 ./program
 Вы регулярно запускаете одну и ту же программу на разных GPU и в разных режимах - например, на GPU 0 и 1, в режиме отладки и в режиме измерения производительности. Вместо того чтобы держать несколько файлов конфигурации, вы описываете всё в одном.
 ```json
 {
-    "current_config": "default",
+    "default": { "backend": "gpu", "verbosity": 2 },
 
-    "configs": {
-        "default": { "backend": "gpu", "verbosity": 2 },
+    "gpu0": { 
+        "extends": ["default"], 
+        "backend": "by_index", 
+        "platform_index": 0, 
+        "device_index": 0 
+        },
+    "gpu1": { 
+        "extends": ["default"], 
+        "backend": "by_index", 
+        "platform_index": 0, 
+        "device_index": 1 
+        },
+    "gpu2": { 
+        "extends": ["default"], 
+        "backend": "by_index", 
+        "platform_index": 0, 
+        "device_index": 2 
+        },
 
-        "gpu0": { 
-            "extends": ["default"], 
-            "backend": "by_index", 
-            "platform_index": 0, 
-            "device_index": 0 
-            },
-        "gpu1": { 
-            "extends": ["default"], 
-            "backend": "by_index", 
-            "platform_index": 0, 
-            "device_index": 1 
-            },
-        "gpu2": { 
-            "extends": ["default"], 
-            "backend": "by_index", 
-            "platform_index": 0, 
-            "device_index": 2 
-            },
+    "debug": { 
+        "extends": ["default"], 
+        "verbosity": 3, 
+        "profiling": true 
+        },
+    "bench": { 
+        "extends": ["default"], 
+        "verbosity": 0 
+        },
 
-        "debug": { 
-            "extends": ["default"], 
-            "verbosity": 3, 
-            "profiling": true 
-            },
-        "bench": { 
-            "extends": ["default"], 
-            "verbosity": 0 
-            s},
-
-        "debug_gpu1": { "extends": ["debug", "gpu1"] },
-        "bench_gpu2": { "extends": ["bench", "gpu2"] }
-    }
+    "debug_gpu1": { "extends": ["debug", "gpu1"] },
+    "bench_gpu2": { "extends": ["bench", "gpu2"] }
 }
 ```
 Запуск 
@@ -385,3 +383,37 @@ SPLA_CONFIG=debug ./program
 SPLA_CONFIG=debug_gpu1 ./program
 ```
 Подробнее в главе про [конфигурации](#конфигурации) и [наследование конфигураций (`extends`)](#наследование-конфигураций).
+
+## Запуск с конфигурациями из произвольного файла
+
+Вам нужно запустить тесты в CI с отдельным файлом конфигурации.
+
+В среде CI неудобно и нежелательно трогать системный и пользовательский файлы конфигурации, так как они могут влиять на другие задачи. Вместо этого пользователь может описать конфигурации в отдельном файле внутри репозитория и указать путь к нему при запуске.
+
+Файл может содержать конфигурации, рассчитанные именно на тестовую среду: например, ограниченное число очередей, отключённое профилирование, фиксированный уровень логирования.
+
+```json
+{
+    "test_gpu0": {
+        "backend": "by_index", 
+        "platform_index": 0, 
+        "device_index": 0,
+        "if_gpu_unavailable": "abort",
+        "queues_count": 1,
+        "profiling": false,
+        "allocator_type": "general",
+        "verbosity": 1
+    },
+    "test_gpu1": {
+        "backend": "by_index", 
+        "platform_index": 0, 
+        "device_index": 1,
+        "if_gpu_unavailable": "abort",
+        "queues_count": 2,
+        "profiling": false,
+        "allocator_type": "linear",
+        "linear_alloc_size": 8,
+        "verbosity": 0
+    }
+}
+```
