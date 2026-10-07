@@ -417,3 +417,24 @@ SPLA_CONFIG=debug_gpu1 ./program
     }
 }
 ```
+
+### Запуск
+```bash
+SPLA_CONFIG_FILE=./path/to/conf/spla_conf.json SPLA_CONFIG=test_gpu1 ./program
+```
+Или через CLI:
+```bash
+./program --spla-config-file=./path/to/conf/spla_conf.json --spla-config=test_gpu1
+```
+Будет применена конфигурация `test_gpu1` из файла `./path/to/conf/spla_conf.json`.
+
+Если указан файл, но не указана конфигурация, то будет применена первая конфигурация из файла.
+
+```bash
+SPLA_CONFIG_FILE=./path/to/conf/spla_conf.json ./program
+```
+Или через CLI:
+```bash
+./program --spla-config-file=./path/to/conf/spla_conf.json 
+```
+В этом случае применяется конфигурация `test_gpu0`.
