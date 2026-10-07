@@ -388,25 +388,41 @@ SPLA_CONFIG=debug_gpu1 ./program
 
 Вам нужно запустить тесты в CI с отдельным файлом конфигурации.
 
-В среде CI неудобно и нежелательно трогать системный и пользовательский файлы конфигурации, так как они могут влиять на другие задачи. Вместо этого пользователь может описать конфигурации в отдельном файле внутри репозитория и указать путь к нему при запуске.
+В среде CI неудобно и нежелательно трогать системный и пользовательский файлы конфигурации, а конфигурация тестов должна лежать в репозитории. Поэтому конфигурации описывают в отдельном файле внутри репозитория и указывают путь к нему при запуске и имя конфигурации.
 
-Файл может содержать конфигурации, рассчитанные именно на тестовую среду: например, ограниченное число очередей, отключённое профилирование, фиксированный уровень логирования.
+```
+my_project/
+├── .github/
+│   └── workflows/
+│       ├── ci_with_conf.yml
+│       └── ci_spla_conf.json
+├── src/
+└── tests/
+```
 
+### ci_spla_conf.json
 ```json
 {
-    "test_gpu0": {
-        "backend": "by_index", 
-        "platform_index": 0, 
-        "device_index": 0,
-        "if_gpu_unavailable": "abort",
+    "test_cpu": {
+        "backend": "cpu",
         "queues_count": 1,
         "profiling": false,
         "allocator_type": "general",
         "verbosity": 1
-    },
+        },
+    "test_gpu0": {
+        "backend": "by_index",
+        "platform_index": 0,
+        "device_index": 0,
+        "if_gpu_unavailable": "abort",
+        "queues_count": 2,
+        "profiling": false,
+        "allocator_type": "general",
+        "verbosity": 0
+        },
     "test_gpu1": {
-        "backend": "by_index", 
-        "platform_index": 0, 
+        "backend": "by_index",
+        "platform_index": 0,
         "device_index": 1,
         "if_gpu_unavailable": "abort",
         "queues_count": 2,
@@ -414,27 +430,44 @@ SPLA_CONFIG=debug_gpu1 ./program
         "allocator_type": "linear",
         "linear_alloc_size": 8,
         "verbosity": 0
-    }
+        }
 }
 ```
 
-### Запуск
-```bash
-SPLA_CONFIG_FILE=./path/to/conf/spla_conf.json SPLA_CONFIG=test_gpu1 ./program
-```
-Или через CLI:
-```bash
-./program --spla-config-file=./path/to/conf/spla_conf.json --spla-config=test_gpu1
-```
-Будет применена конфигурация `test_gpu1` из файла `./path/to/conf/spla_conf.json`.
+### ci_with_conf.yml
+```yml
+name: CI
 
-Если указан файл, но не указана конфигурация, то будет применена первая конфигурация из файла.
+on: [push, pull_request]
 
-```bash
-SPLA_CONFIG_FILE=./path/to/conf/spla_conf.json ./program
+jobs:
+  test:
+    name: Test (${{ matrix.config }})
+    runs-on: [self-hosted]
+
+    strategy:
+      fail-fast: false
+      matrix:
+        config: [test_cpu, test_gpu0, test_gpu1]
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install pyspla pytest
+
+      - name: Run tests
+        env:
+          SPLA_CONFIG_FILE: ${{ github.workspace }}/.github/workflows/ci_spla_conf.json
+          SPLA_CONFIG: ${{ matrix.config }}
+        run: pytest tests/
 ```
-Или через CLI:
-```bash
-./program --spla-config-file=./path/to/conf/spla_conf.json 
-```
-В этом случае применяется конфигурация `test_gpu0`.
+Если пользователь не укажет конфигурацию, то будет взята конфигурация `"default"` из файла, который идет с библиотекой.
