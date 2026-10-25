@@ -107,9 +107,12 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           # Remove previous release with the same tag, if any (ignore errors)
-          gh release delete v0.0.5-whls --yes 2>/dev/null || true
+          gh release delete v0.0.5-whls \
+            --repo "${{ github.repository }}" \
+            --yes 2>/dev/null || true
 
           gh release create v0.0.5-whls \
+            --repo "${{ github.repository }}" \
             --title "pyspla 0.0.5 (whls branch)" \
             --notes "Automated pre-release wheels for Linux x86_64, Windows x64, macOS ARM64, macOS Intel." \
             --prerelease \
