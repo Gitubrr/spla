@@ -84,3 +84,31 @@ jobs:
           name: wheel-${{ matrix.name }}
           path: python/dist/*.whl
           if-no-files-found: error
+
+  release:
+    name: Create Release
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+          pattern: wheel-*
+          merge-multiple: true
+
+      - name: Show downloaded wheels
+        run: ls -la artifacts/*.whl
+
+      - name: Create GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create v0.0.5-config \
+            --title "pyspla 0.0.5 (config branch)" \
+            --notes "Automated pre-release wheels for Linux x86_64, Windows x64, macOS ARM64, macOS Intel." \
+            --prerelease \
+            --clobber \
+            artifacts/*.whl
