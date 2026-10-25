@@ -21,7 +21,7 @@ REPO="${SPLA_INSTALL_REPO:-Gitubrr/spla}"
 VERSION="${SPLA_INSTALL_VERSION:-0.0.5}"
 
 # Derive a default tag if not provided: use branch-aware pre-release tag.
-DEFAULT_TAG="v${VERSION}-config"
+DEFAULT_TAG="v${VERSION}-whls"
 TAG="${SPLA_INSTALL_TAG:-${DEFAULT_TAG}}"
 
 # ------------------------------------------------------------------ detect platform
