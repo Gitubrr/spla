@@ -2,7 +2,7 @@ name: Build Wheels
 
 on:
   push:
-    branches: [config]
+    branches: [whls]
   workflow_dispatch:
 
 jobs:
