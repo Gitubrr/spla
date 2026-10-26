@@ -1,0 +1,119 @@
+name: Build Wheels
+
+on:
+  push:
+    branches: [whls]
+  workflow_dispatch:
+
+jobs:
+  build:
+    name: ${{ matrix.name }}
+    runs-on: ${{ matrix.os }}
+
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # Linux x86_64
+          - os: ubuntu-24.04
+            name: manylinux_2_38_x86_64
+            plat: manylinux_2_38_x86_64
+            lib: libspla_x64.so
+            cmake_args: -DSPLA_BUILD_OPENCL=ON
+
+          # Windows x64
+          - os: windows-2022
+            name: win_amd64
+            plat: win_amd64
+            lib: spla_x64.dll
+            cmake_args: -DSPLA_BUILD_OPENCL=ON
+
+          # macOS Apple Silicon (arm64)
+          - os: macos-14
+            name: macosx_11_0_arm64
+            plat: macosx_11_0_arm64
+            lib: libspla_arm64.dylib
+            cmake_args: -DSPLA_BUILD_OPENCL=ON -DCMAKE_OSX_ARCHITECTURES=arm64
+
+          # macOS Intel (x86_64, кросс-компиляция на arm-раннере)
+          - os: macos-14
+            name: macosx_10_15_x86_64
+            plat: macosx_10_15_x86_64
+            lib: libspla_x64.dylib
+            cmake_args: -DSPLA_BUILD_OPENCL=ON -DCMAKE_OSX_ARCHITECTURES=x86_64
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+          fetch-depth: 0
+
+      - uses: seanmiddleditch/gha-setup-ninja@master
+
+      # MSVC нужен только на Windows
+      - uses: ilammy/msvc-dev-cmd@v1
+        if: runner.os == 'Windows'
+
+      - name: Configure
+        shell: bash
+        run: |
+          cmake . -G Ninja -B build \
+            -DCMAKE_BUILD_TYPE=Release \
+            ${{ matrix.cmake_args }}
+
+      - name: Build spla
+        run: cmake --build build --target spla -j 4
+
+      - name: Stage library
+        shell: bash
+        run: |
+          mkdir -p python/pyspla
+          cp "build/${{ matrix.lib }}" python/pyspla/
+          ls -la python/pyspla/
+
+      - name: Build wheel
+        working-directory: python
+        shell: bash
+        run: |
+          python -m pip install --upgrade setuptools wheel
+          python setup.py bdist_wheel --plat-name ${{ matrix.plat }}
+          ls -la dist/
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: wheel-${{ matrix.name }}
+          path: python/dist/*.whl
+          if-no-files-found: error
+
+  release:
+    name: Create Release
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+          pattern: wheel-*
+          merge-multiple: true
+
+      - name: Show downloaded wheels
+        run: ls -la artifacts/*.whl
+
+      - name: Create GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          # Remove previous release with the same tag, if any (ignore errors)
+          gh release delete v0.0.5-whls \
+            --repo "${{ github.repository }}" \
+            --yes 2>/dev/null || true
+
+          gh release create v0.0.5-whls \
+            --repo "${{ github.repository }}" \
+            --title "pyspla 0.0.5 (whls branch)" \
+            --notes "Automated pre-release wheels for Linux x86_64, Windows x64, macOS ARM64, macOS Intel." \
+            --prerelease \
+            artifacts/*.whl

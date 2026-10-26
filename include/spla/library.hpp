@@ -115,6 +115,21 @@ namespace spla {
         SPLA_API Status set_message_callback(MessageCallback callback);
 
         /**
+         * @brief Set verbosity level for library logger
+         *
+         * Controls which messages are shown:
+         *   0 - no output
+         *   1 - errors only
+         *   2 - errors + warnings
+         *   3 - all messages (info, warnings, errors)
+         *
+         * @param verbosity Verbosity level [0, 3]
+         *
+         * @return Function call status
+         */
+        SPLA_API Status set_verbosity(int verbosity);
+
+        /**
          * @brief Sets default library callback to log messages to console
          *
          * @return Function call status
@@ -148,6 +163,27 @@ namespace spla {
          * @return Function call status
          */
         SPLA_API Status time_profile_reset();
+
+        /**
+         * @brief Configure the library from command line arguments and environment variables
+         * @note It is recommended to call this function before any computations, however the call
+         * @param argc Number of arguments (including program name)
+         * @param argv Array of arguments (may be nullptr when argc is 0)
+         * @return Function call status
+         */
+        SPLA_API Status configure(int argc, char** argv);
+
+        /**
+         * @brief Get status of accelerator initialization
+         * @return Function call status
+         */
+        SPLA_API Status get_acceleration_status();
+
+        /**
+         * @brief Apply configuration using already parsed config_final
+         * @return Function call status
+         */
+        SPLA_API Status apply_configuration();
 
         /**
          * @warning Internal usage only!
@@ -198,9 +234,9 @@ namespace spla {
         std::unique_ptr<class Dispatcher>            m_dispatcher;
         std::unique_ptr<class Logger>                m_logger;
         std::unique_ptr<class TimeProfiler>          m_time_profiler;
-        bool                                         m_force_no_acc = false;
+        bool                                         m_force_no_acc        = false;
+        Status                                       m_acceleration_status = Status::NoAcceleration;
     };
-
     /**
      * @}
      */

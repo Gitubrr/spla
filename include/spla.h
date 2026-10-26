@@ -135,6 +135,10 @@ typedef void(spla_MessageCallback)(spla_Status, const char* message, const char*
 
 SPLA_API void        spla_Library_finalize();
 SPLA_API spla_Status spla_Library_initialize();
+SPLA_API spla_Status spla_Configure(int argc, char** argv);
+SPLA_API void        spla_Config_help();
+SPLA_API void        spla_Config_version();
+SPLA_API spla_Status spla_Library_get_acceleration_status();
 SPLA_API spla_Status spla_Library_set_accelerator(spla_AcceleratorType accelerator);
 SPLA_API spla_Status spla_Library_set_platform(int index);
 SPLA_API spla_Status spla_Library_set_device(int index);
@@ -334,6 +338,7 @@ SPLA_API spla_Status spla_Vector_get_float(spla_Vector v, spla_uint row_id, floa
 SPLA_API spla_Status spla_Vector_build(spla_Vector v, spla_MemView keys, spla_MemView values);
 SPLA_API spla_Status spla_Vector_read(spla_Vector v, spla_MemView* keys, spla_MemView* values);
 SPLA_API spla_Status spla_Vector_clear(spla_Vector v);
+SPLA_API spla_Status spla_Vector_fill_with(spla_Vector v, spla_Scalar value);
 
 //////////////////////////////////////////////////////////////////////////////////////
 
@@ -389,6 +394,13 @@ SPLA_API spla_Status spla_Exec_v_count_mf(spla_Scalar r, spla_Vector v, spla_Des
 
 //////////////////////////////////////////////////////////////////////////////////////
 
+/* Descriptor object methods */
+
+SPLA_API spla_Status spla_Descriptor_make(spla_Descriptor* descriptor);
+SPLA_API spla_Status spla_Descriptor_set_struct_only(spla_Descriptor descriptor, spla_bool value);
+SPLA_API spla_Status spla_Descriptor_set_early_exit(spla_Descriptor descriptor, spla_bool value);
+
+//////////////////////////////////////////////////////////////////////////////////////
 #if defined(__cplusplus)
 }
 #endif

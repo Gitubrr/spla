@@ -27,6 +27,20 @@ SOFTWARE.
 """
 
 __all__ = [
+    "SplaError",
+    "SplaFailedInitialize",
+    "SplaFailedConfigure",
+    "SplaNoAcceleration",
+    "SplaPlatformNotFound",
+    "SplaDeviceNotFound",
+    "SplaInvalidState",
+    "SplaInvalidArgument",
+    "SplaNoValue",
+    "SplaCompilationError",
+    "SplaConfigError",
+    "SplaNotImplemented",
+    "acceleration_status",
+    "has_acceleration",
     "backend",
     "check",
     "is_docs",
@@ -35,6 +49,7 @@ __all__ = [
 ]
 
 import os
+import sys
 import ctypes
 import pathlib
 import platform
@@ -66,6 +81,10 @@ class SplaFailedInitialize(SplaError):
     pass
 
 
+class SplaFailedConfigure(SplaError):
+    pass
+
+
 class SplaNoAcceleration(SplaError):
     pass
 
@@ -91,6 +110,10 @@ class SplaNoValue(SplaError):
 
 
 class SplaCompilationError(SplaError):
+    pass
+
+
+class SplaConfigError(SplaError):
     pass
 
 
@@ -155,8 +178,33 @@ _status_mapping = {
     5: SplaInvalidState,
     6: SplaInvalidArgument,
     7: SplaNoValue,
+    8: SplaCompilationError,
+    9: SplaConfigError,
     1024: SplaNotImplemented,
 }
+
+
+def _status_name(status):
+    return "OK" if status == 0 else _status_mapping.get(status, SplaError).__name__
+
+
+def _raise_status(status, message, fallback=SplaError):
+    """
+    Raise the exception matching a C status code and keep the numeric status on it.
+
+    :param status:
+        Status returned by the C library.
+    :param message:
+        Human-readable operation description.
+    :param fallback:
+        Exception type used for generic or unknown statuses.
+    """
+    exc_type = _status_mapping.get(status, fallback)
+    if exc_type is SplaError:
+        exc_type = fallback
+    exc = exc_type(f"{message} (status {status})")
+    exc.status = status
+    raise exc
 
 
 def load_library(lib_path):
@@ -191,6 +239,12 @@ def load_library(lib_path):
     _spla.spla_Library_finalize.argtypes = []
     _spla.spla_Library_initialize.restype = _status_t
     _spla.spla_Library_initialize.argtypes = []
+    _spla.spla_Configure.restype = _status_t
+    _spla.spla_Configure.argtypes = [ctypes.c_int, ctypes.POINTER(ctypes.c_char_p)]
+    _spla.spla_Config_help.restype = None
+    _spla.spla_Config_help.argtypes = []
+    _spla.spla_Config_version.restype = None
+    _spla.spla_Config_version.argtypes = []
     _spla.spla_Library_set_accelerator.restype = _status_t
     _spla.spla_Library_set_accelerator.argtypes = [_enum_t]
     _spla.spla_Library_set_platform.restype = _status_t
@@ -203,6 +257,10 @@ def load_library(lib_path):
     _spla.spla_Library_set_message_callback.argtypes = [_callback_t, ctypes.c_void_p]
     _spla.spla_Library_set_default_callback.restype = _status_t
     _spla.spla_Library_set_default_callback.argtypes = []
+    _spla.spla_Library_initialize.restype = _status_t
+    _spla.spla_Library_initialize.argtypes = []
+    _spla.spla_Library_get_acceleration_status.restype = _status_t
+    _spla.spla_Library_get_acceleration_status.argtypes = []
     _spla.spla_Library_get_accelerator_info.restype = _status_t
     _spla.spla_Library_get_accelerator_info.argtypes = [ctypes.c_char_p, _int]
 
@@ -214,6 +272,12 @@ def load_library(lib_path):
     _spla.spla_Type_UINT.argtypes = []
     _spla.spla_Type_FLOAT.restype = _object_t
     _spla.spla_Type_FLOAT.argtypes = []
+    _spla.spla_Descriptor_make.restype = _status_t
+    _spla.spla_Descriptor_make.argtypes = [_p_object_t]
+    _spla.spla_Descriptor_set_struct_only.restype = _status_t
+    _spla.spla_Descriptor_set_struct_only.argtypes = [_object_t, _int]
+    _spla.spla_Descriptor_set_early_exit.restype = _status_t
+    _spla.spla_Descriptor_set_early_exit.argtypes = [_object_t, _int]
 
     _spla.spla_OpUnary_IDENTITY_INT.restype = _object_t
     _spla.spla_OpUnary_IDENTITY_UINT.restype = _object_t
@@ -494,6 +558,7 @@ def load_library(lib_path):
     _spla.spla_Vector_build.restype = _status_t
     _spla.spla_Vector_read.restype = _status_t
     _spla.spla_Vector_clear.restype = _status_t
+    _spla.spla_Vector_fill_with.restype = _status_t
 
     _spla.spla_Vector_make.argtypes = [_p_object_t, _uint, _object_t]
     _spla.spla_Vector_set_format.argtypes = [_object_t, ctypes.c_int]
@@ -508,6 +573,7 @@ def load_library(lib_path):
     _spla.spla_Vector_build.argtypes = [_object_t, _object_t, _object_t]
     _spla.spla_Vector_read.argtypes = [_object_t, _p_object_t, _p_object_t]
     _spla.spla_Vector_clear.argtypes = [_object_t]
+    _spla.spla_Vector_fill_with.argtypes = [_object_t, _object_t]
 
     _spla.spla_Matrix_make.restype = _status_t
     _spla.spla_Matrix_set_format.restype = _status_t
@@ -612,14 +678,50 @@ def load_library(lib_path):
 
 def default_callback(status, msg, file, function, line, user_data):
     decoded_msg = msg.decode("utf-8")
-    decoded_file = file.decode("utf-8")
-    print(f"pyspla: [{decoded_file}:{line}] {_status_mapping[status]}: {decoded_msg}")
+    print(f"pyspla: {_status_name(status)}: {decoded_msg}")
+
+
+def configure():
+    """Configure spla from command line arguments"""
+    if _spla:
+        args = sys.argv[1:]
+        argc = len(args)
+        argv = (ctypes.c_char_p * argc)(*[arg.encode("utf-8") for arg in args])
+        status = _spla.spla_Configure(argc, argv)
+
+        if status != 0:
+            _raise_status(status, "spla configuration failed", SplaFailedConfigure)
 
 
 def init_library():
     if _spla:
-        if _spla.spla_Library_initialize() != 0:
-            raise SplaFailedInitialize
+        status = _spla.spla_Library_initialize()
+        if status != 0:
+            _raise_status(status, "spla initialization failed", SplaFailedInitialize)
+
+
+def acceleration_status():
+    """
+    Return the current accelerator initialization status.
+
+    Status 0 means that an accelerated backend was initialized successfully,
+    status 2 means that the library works on pure CPU, and other values are
+    initialization errors (see the corresponding Spla* exceptions).
+
+    :return: Status code returned by the C library or None if it is not loaded.
+    """
+    if _spla:
+        return int(_spla.spla_Library_get_acceleration_status())
+    return None
+
+
+def has_acceleration():
+    """
+    Check whether an accelerated backend is currently used.
+
+    :return: True if an accelerator was initialized successfully.
+    """
+    return acceleration_status() == 0
 
 
 def finalize():
@@ -656,6 +758,15 @@ def initialize():
         raise Exception(f"no compiled spla file {TARGET} to load")
 
     load_library(_spla_path)
+
+    if "--spla-help" in sys.argv[1:]:
+        _spla.spla_Config_help()
+        sys.exit(0)
+    if "--spla-version" in sys.argv[1:]:
+        _spla.spla_Config_version()
+        sys.exit(0)
+
+    configure()
     init_library()
 
     _default_callback = _callback_t(default_callback)
@@ -678,7 +789,7 @@ def check(status):
         Status to check.
     """
     if status != 0:
-        raise _status_mapping[status]
+        _raise_status(status, "spla call failed")
 
 
 def is_docs():
