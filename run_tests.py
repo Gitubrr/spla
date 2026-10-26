@@ -29,7 +29,6 @@ import shared
 import argparse
 import subprocess
 import re
-import os
 
 
 def test_names(test_src_path):
@@ -42,33 +41,42 @@ def test_names(test_src_path):
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--build-dir", default="build")
-    parser.add_argument("--platform", default="0")
-    parser.add_argument("--device", default="0")
+    parser.add_argument("--spla-config", default=None,
+                        help="Name of the spla configuration to apply (e.g., test_cpu, test_gpu)")
+    parser.add_argument("--spla-config-file", default=None,
+                        help="Path to a spla configuration file")
     args = parser.parse_args()
-
-    spla_opencl_platform = "SPLA_OPENCL_PLATFORM"
-    spla_opencl_device = "SPLA_OPENCL_DEVICE"
-
-    os.environ[spla_opencl_platform] = args.platform
-    os.environ[spla_opencl_device] = args.device
 
     tests_dir = shared.ROOT / args.build_dir / "tests"
     print(f"Searching for unit-tests in `{tests_dir}` folder")
+
+    # Build the spla-config flags to pass to each test binary
+    config_flags = []
+    if args.spla_config_file:
+        config_flags.extend(["--spla-config-file", args.spla_config_file])
+    if args.spla_config:
+        config_flags.extend(["--spla-config", args.spla_config])
+
+    if args.spla_config:
+        print(f"Using spla configuration: {args.spla_config}")
+    if args.spla_config_file:
+        print(f"Using spla configuration file: {args.spla_config_file}")
 
     failed_tests = []
     skipped_tests = []
     all_tests = test_names(shared.ROOT / "tests")
     for test_name in all_tests:
-        full_test_name = str(tests_dir / test_name)
+        full_test_path = str(tests_dir / test_name)
+        cmd = [full_test_path] + config_flags
         try:
-            subprocess.check_call(full_test_name)
-            print(f"Exec unit-test: `{full_test_name}`")
+            subprocess.check_call(cmd)
+            print(f"Exec unit-test: `{full_test_path}`")
         except FileNotFoundError:
             skipped_tests.append(test_name)
-            print(f"Skipped: `{full_test_name}`")
-        except subprocess.CalledProcessError as err:
+            print(f"Skipped: `{full_test_path}`")
+        except subprocess.CalledProcessError:
             failed_tests.append(test_name)
-            print(f"Failed: `{err.output}`")
+            print(f"Failed: `{full_test_path}`")
 
     all_tests_string = '\n\t'.join(all_tests)
     print(f"All executed tests: \n\t{all_tests_string}")

@@ -26,13 +26,10 @@
 /**********************************************************************************/
 
 #include "test_common.hpp"
-#include <gtest/gtest.h>
 
 #define CL_HPP_MINIMUM_OPENCL_VERSION 120
 #define CL_HPP_TARGET_OPENCL_VERSION  120
 #define CL_HPP_ENABLE_EXCEPTIONS
-#define SPLA_OPENCL_PLATFORM "SPLA_OPENCL_PLATFORM"
-#define SPLA_OPENCL_DEVICE   "SPLA_OPENCL_DEVICE"
 #include <CL/opencl.hpp>
 
 #include <iostream>
@@ -40,30 +37,27 @@
 #include <thread>
 #include <vector>
 
+#include <opencl/cl_accelerator.hpp>
+
+static cl::Context& test_context() {
+    return spla::get_acc_cl()->get_context();
+}
+
+static cl::Device& test_device() {
+    return spla::get_acc_cl()->get_device();
+}
+
+static cl::CommandQueue& test_queue() {
+    return spla::get_acc_cl()->get_queue_default();
+}
+
 TEST(opencl, basic) {
-    std::vector<cl::Platform> platforms;
-    cl::Platform::get(&platforms);
-    if (platforms.empty()) {
-        GTEST_SKIP() << "No platforms found";
+    if (!spla::get_acc_cl()) {
+        GTEST_SKIP() << "No OpenCL accelerator configured";
     }
 
-    const char* spla_opencl_platform = std::getenv(SPLA_OPENCL_PLATFORM);
-    int         platform_index       = (spla_opencl_platform ? std::atoi(spla_opencl_platform) : 0);
-
-    cl::Platform platform = platforms[platform_index];
-
-    std::vector<cl::Device> devices;
-    platform.getDevices(CL_DEVICE_TYPE_GPU, &devices);
-    if (devices.empty()) {
-        GTEST_SKIP() << "No devices found";
-    }
-
-    const char* spla_opencl_device = std::getenv(SPLA_OPENCL_DEVICE);
-    int         device_index       = (spla_opencl_device ? std::atoi(spla_opencl_device) : 0);
-    cl::Device  device             = devices[device_index];
-
-    cl::Context      context(device);
-    cl::CommandQueue queue(context);
+    auto& queue = test_queue();
+    auto& context = test_context();
 
     std::vector<int> vec_a = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9};
     std::vector<int> vec_b = {0, -1, 2, -3, 4, -5, 6, -7, 8, -9};
@@ -80,7 +74,7 @@ TEST(opencl, basic) {
             "}";
 
     cl::Program program(context, kernel_code);
-    program.build(device, "-cl-std=CL1.2");
+    program.build(test_device(), "-cl-std=CL1.2");
 
     cl::Kernel kernel(program, "add");
     kernel.setArg(0, a);
@@ -101,29 +95,12 @@ TEST(opencl, basic) {
 #include "../src/opencl/generated/auto_sort_bitonic.hpp"
 
 TEST(opencl, bitonic_sort_local) {
-    std::vector<cl::Platform> platforms;
-    cl::Platform::get(&platforms);
-    if (platforms.empty()) {
-        GTEST_SKIP() << "No platforms found";
+    if (!spla::get_acc_cl()) {
+        GTEST_SKIP() << "No OpenCL accelerator configured";
     }
 
-    const char* spla_opencl_platform = std::getenv(SPLA_OPENCL_PLATFORM);
-    int         platform_index       = (spla_opencl_platform ? std::atoi(spla_opencl_platform) : 0);
-
-    cl::Platform platform = platforms[platform_index];
-
-    std::vector<cl::Device> devices;
-    platform.getDevices(CL_DEVICE_TYPE_GPU, &devices);
-    if (devices.empty()) {
-        GTEST_SKIP() << "No devices found";
-    }
-
-    const char* spla_opencl_device = std::getenv(SPLA_OPENCL_DEVICE);
-    int         device_index       = (spla_opencl_device ? std::atoi(spla_opencl_device) : 0);
-    cl::Device  device             = devices[device_index];
-
-    cl::Context      context(device);
-    cl::CommandQueue queue(context);
+    auto& queue = test_queue();
+    auto& context = test_context();
 
     const int                 N = 2000;
     std::vector<unsigned int> keys(N);
@@ -140,7 +117,7 @@ TEST(opencl, bitonic_sort_local) {
     std::string kernel_code = source_sort_bitonic;
 
     cl::Program program(context, kernel_code);
-    program.build(device, "-cl-std=CL1.2 -DBLOCK_SIZE=2048 -DTYPE=int");
+    program.build(test_device(), "-cl-std=CL1.2 -DBLOCK_SIZE=2048 -DTYPE=int");
 
     cl::Kernel kernel(program, "bitonic_sort_local");
     kernel.setArg(0, buffer_keys);
@@ -164,29 +141,12 @@ TEST(opencl, bitonic_sort_local) {
 }
 
 TEST(opencl, bitonic_sort_global) {
-    std::vector<cl::Platform> platforms;
-    cl::Platform::get(&platforms);
-    if (platforms.empty()) {
-        GTEST_SKIP() << "No platforms found";
+    if (!spla::get_acc_cl()) {
+        GTEST_SKIP() << "No OpenCL accelerator configured";
     }
 
-    const char* spla_opencl_platform = std::getenv(SPLA_OPENCL_PLATFORM);
-    int         platform_index       = (spla_opencl_platform ? std::atoi(spla_opencl_platform) : 0);
-
-    cl::Platform platform = platforms[platform_index];
-
-    std::vector<cl::Device> devices;
-    platform.getDevices(CL_DEVICE_TYPE_GPU, &devices);
-    if (devices.empty()) {
-        GTEST_SKIP() << "No devices found";
-    }
-
-    const char* spla_opencl_device = std::getenv(SPLA_OPENCL_DEVICE);
-    int         device_index       = (spla_opencl_device ? std::atoi(spla_opencl_device) : 0);
-    cl::Device  device             = devices[device_index];
-
-    cl::Context      context(device);
-    cl::CommandQueue queue(context);
+    auto& queue = test_queue();
+    auto& context = test_context();
 
     const int                 N = 100000;
     std::vector<unsigned int> keys(N);
@@ -203,7 +163,7 @@ TEST(opencl, bitonic_sort_global) {
     std::string kernel_code = source_sort_bitonic;
 
     cl::Program program(context, kernel_code);
-    program.build(device, "-cl-std=CL1.2 -DBLOCK_SIZE=2048 -DTYPE=int");
+    program.build(test_device(), "-cl-std=CL1.2 -DBLOCK_SIZE=2048 -DTYPE=int");
 
     cl::Kernel kernel(program, "bitonic_sort_global");
     kernel.setArg(0, buffer_keys);
@@ -228,29 +188,12 @@ TEST(opencl, bitonic_sort_global) {
 }
 
 TEST(opencl, custom_value) {
-    std::vector<cl::Platform> platforms;
-    cl::Platform::get(&platforms);
-    if (platforms.empty()) {
-        GTEST_SKIP() << "No platforms found";
+    if (!spla::get_acc_cl()) {
+        GTEST_SKIP() << "No OpenCL accelerator configured";
     }
 
-    const char* spla_opencl_platform = std::getenv(SPLA_OPENCL_PLATFORM);
-    int         platform_index       = (spla_opencl_platform ? std::atoi(spla_opencl_platform) : 0);
-
-    cl::Platform platform = platforms[platform_index];
-
-    std::vector<cl::Device> devices;
-    platform.getDevices(CL_DEVICE_TYPE_GPU, &devices);
-    if (devices.empty()) {
-        GTEST_SKIP() << "No devices found";
-    }
-
-    const char* spla_opencl_device = std::getenv(SPLA_OPENCL_DEVICE);
-    int         device_index       = (spla_opencl_device ? std::atoi(spla_opencl_device) : 0);
-    cl::Device  device             = devices[device_index];
-
-    cl::Context      context(device);
-    cl::CommandQueue queue(context);
+    auto& queue = test_queue();
+    auto& context = test_context();
 
     struct f2 {
         float x;
@@ -274,7 +217,7 @@ TEST(opencl, custom_value) {
             "}";
 
     cl::Program program(context, kernel_code);
-    program.build(device, "-cl-std=CL1.2");
+    program.build(test_device(), "-cl-std=CL1.2");
 
     cl::Kernel kernel(program, "fill");
     kernel.setArg(0, buffer);
@@ -289,28 +232,13 @@ TEST(opencl, custom_value) {
 }
 
 TEST(opencl, reduce_by_key_small) {
-    std::vector<cl::Platform> platforms;
-    cl::Platform::get(&platforms);
-    if (platforms.empty()) {
-        GTEST_SKIP() << "No platforms found";
+    if (!spla::get_acc_cl()) {
+        GTEST_SKIP() << "No OpenCL accelerator configured";
     }
 
-    const char* spla_opencl_platform = std::getenv(SPLA_OPENCL_PLATFORM);
-    int         platform_index       = (spla_opencl_platform ? std::atoi(spla_opencl_platform) : 0);
+    auto& context = test_context();
 
-    cl::Platform platform = platforms[platform_index];
-
-    std::vector<cl::Device> devices;
-    platform.getDevices(CL_DEVICE_TYPE_GPU, &devices);
-    if (devices.empty()) {
-        GTEST_SKIP() << "No devices found";
-    }
-
-    const char* spla_opencl_device = std::getenv(SPLA_OPENCL_DEVICE);
-    int         device_index       = (spla_opencl_device ? std::atoi(spla_opencl_device) : 0);
-    cl::Device  device             = devices[device_index];
-
-    cl::Context      context(device);
+    // Profiling queue
     cl::CommandQueue queue(context, CL_QUEUE_PROFILING_ENABLE);
 
     std::string kernel_code =
@@ -388,7 +316,7 @@ TEST(opencl, reduce_by_key_small) {
                 })";
 
     cl::Program program(context, kernel_code);
-    program.build(device, "-cl-std=CL1.2");
+    program.build(test_device(), "-cl-std=CL1.2");
 
     const uint32_t        N = 109;
     std::vector<uint32_t> keys(N);

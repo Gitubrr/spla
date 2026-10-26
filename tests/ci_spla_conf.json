@@ -1,0 +1,12 @@
+{
+    "test_1": {
+        "extends": ["default"],
+        "backend": "cpu",
+        "verbosity": 3
+    },
+    "test_2": {
+        "extends": ["default"],
+        "backend": "opencl_gpu",
+        "verbosity": 3
+    }
+}
