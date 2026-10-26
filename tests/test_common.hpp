@@ -44,47 +44,26 @@ public:
     }
 };
 
-// Put in the end of the unit test file
-#define SPLA_GTEST_MAIN                                  \
-    int main(int argc, char* argv[]) {                   \
-        ::testing::GTEST_FLAG(catch_exceptions) = false; \
-        ::testing::InitGoogleTest(&argc, argv);          \
-        return RUN_ALL_TESTS();                          \
+// Basic main: accepts configuration from CLI arguments
+// Supports: --spla-config-file=<path> --spla-config=<name>
+// Default: uses the library's built-in default configuration
+#define SPLA_GTEST_MAIN                                      \
+    int main(int argc, char* argv[]) {                       \
+        ::testing::GTEST_FLAG(catch_exceptions) = false;     \
+        ::testing::InitGoogleTest(&argc, argv);              \
+        spla::Library::get(argc, argv);                      \
+        return RUN_ALL_TESTS();                              \
     }
 
-// Put in the end of the unit test file if you need additional spla lib finalize call
-#define SPLA_GTEST_MAIN_WITH_FINALIZE                    \
-    int main(int argc, char* argv[]) {                   \
-        ::testing::GTEST_FLAG(catch_exceptions) = false; \
-        ::testing::InitGoogleTest(&argc, argv);          \
-        int __ret = RUN_ALL_TESTS();                     \
-        spla::Library::get()->finalize();                \
-        return __ret;                                    \
-    }
-
-// Form temporary testing (allows to select platform)
-#define SPLA_GTEST_MAIN_WITH_FINALIZE_PLATFORM(id)              \
-    int main(int argc, char* argv[]) {                          \
-        ::testing::GTEST_FLAG(catch_exceptions) = false;        \
-        ::testing::InitGoogleTest(&argc, argv);                 \
-        spla::Library::get()->set_platform(id);                 \
-        spla::Library::get()->set_device(0);                    \
-        spla::Library::get()->set_queues_count(1);              \
-        spla::Library::get()->set_force_no_acceleration(false); \
-        int __ret = RUN_ALL_TESTS();                            \
-        spla::Library::get()->finalize();                       \
-        return __ret;                                           \
-    }
-
-// Form temporary testing (allows to select platform)
-#define SPLA_GTEST_MAIN_WITH_FINALIZE_NO_ACC()                 \
-    int main(int argc, char* argv[]) {                         \
-        ::testing::GTEST_FLAG(catch_exceptions) = false;       \
-        ::testing::InitGoogleTest(&argc, argv);                \
-        spla::Library::get()->set_force_no_acceleration(true); \
-        int __ret = RUN_ALL_TESTS();                           \
-        spla::Library::get()->finalize();                      \
-        return __ret;                                          \
+// With library finalization after tests
+#define SPLA_GTEST_MAIN_WITH_FINALIZE                        \
+    int main(int argc, char* argv[]) {                       \
+        ::testing::GTEST_FLAG(catch_exceptions) = false;     \
+        ::testing::InitGoogleTest(&argc, argv);              \
+        spla::Library::get(argc, argv);                      \
+        int __ret = RUN_ALL_TESTS();                         \
+        spla::Library::get()->finalize();                    \
+        return __ret;                                        \
     }
 
 #endif//SPLA_TEST_COMMON_HPP

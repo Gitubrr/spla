@@ -75,7 +75,8 @@ jobs:
         include:
           - os: ubuntu-24.04
             cpu: AMD-EPYC-7763
-  
+            spla-config: test_cpu
+
     env:
       test-file: cpu_tests.log
 
@@ -96,7 +97,11 @@ jobs:
 
       - name: Run tests
         run: |
-          python3 ./run_tests.py --build-dir=${{ env.build-dir }} | tee ${{ env.test-file }}
+          python3 ./run_tests.py \
+            --build-dir=${{ env.build-dir }} \
+            --spla-config-file tests/ci_spla_conf.json \
+            --spla-config ${{ matrix.spla-config }} \
+            | tee ${{ env.test-file }}
 
       - name: Upload tests resutls
         uses: actions/upload-artifact@v4

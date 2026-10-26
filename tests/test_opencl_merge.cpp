@@ -30,8 +30,6 @@
 #define CL_HPP_MINIMUM_OPENCL_VERSION 120
 #define CL_HPP_TARGET_OPENCL_VERSION  120
 #define CL_HPP_ENABLE_EXCEPTIONS
-#define SPLA_OPENCL_PLATFORM "SPLA_OPENCL_PLATFORM"
-#define SPLA_OPENCL_DEVICE   "SPLA_OPENCL_DEVICE"
 #include <CL/opencl.hpp>
 
 #include <algorithm>
@@ -39,6 +37,8 @@
 #include <iostream>
 #include <random>
 #include <vector>
+
+#include <opencl/cl_accelerator.hpp>
 
 using uint = std::uint32_t;
 
@@ -276,6 +276,7 @@ bool check_sort(const std::vector<int>& v) {
             return false;
         }
     }
+
     return true;
 }
 
@@ -412,47 +413,16 @@ void cl_merge_v2(const cl::CommandQueue& queue,
 }
 
 TEST(opencl_merge, merge_path_v1) {
-    std::vector<cl::Platform> platforms;
-    cl::Platform::get(&platforms);
-    if (platforms.empty()) {
-        GTEST_SKIP() << "No platforms found";
+    if (!spla::get_acc_cl()) {
+        GTEST_SKIP() << "No OpenCL accelerator configured";
     }
 
-    const char* spla_opencl_platform = std::getenv(SPLA_OPENCL_PLATFORM);
-    int         platform_index       = (spla_opencl_platform ? std::atoi(spla_opencl_platform) : 0);
-
-    cl::Platform platform = platforms[platform_index];
-
-    std::cout << "Platforms: " << std::endl;
-    for (auto& it : platforms) {
-        std::cout << "- " << it.getInfo<CL_PLATFORM_NAME>() << std::endl;
-    }
-
-    std::cout << "Current platform: " << platform.getInfo<CL_PLATFORM_NAME>() << std::endl;
-
-    std::vector<cl::Device> devices;
-    platform.getDevices(CL_DEVICE_TYPE_GPU, &devices);
-    if (devices.empty()) {
-        GTEST_SKIP() << "No devices found";
-    }
-
-    const char* spla_opencl_device = std::getenv(SPLA_OPENCL_DEVICE);
-    int         device_index       = (spla_opencl_device ? std::atoi(spla_opencl_device) : 0);
-    cl::Device  device             = devices[device_index];
-
-    std::cout << "Devices: " << std::endl;
-    for (auto& it : devices) {
-        std::cout << "- " << it.getInfo<CL_DEVICE_NAME>() << std::endl;
-    }
-
-    std::cout << "Current device: " << device.getInfo<CL_DEVICE_NAME>() << std::endl;
-
-    cl::Context      context(device);
-    cl::CommandQueue queue(context);
+    auto& queue = spla::get_acc_cl()->get_queue_default();
+    auto& context = spla::get_acc_cl()->get_context();
+    auto& device = spla::get_acc_cl()->get_device();
 
     cl::Program program_gl;
     cl::Program program_loc_v1;
-    cl::Program program_loc_v2;
 
     program_gl = cl::Program(context, kernel_global);
     program_gl.build(device, "-cl-std=CL1.2 -DTILE_SIZE=8 -DTYPE=int");
@@ -515,46 +485,15 @@ TEST(opencl_merge, merge_path_v1) {
 }
 
 TEST(opencl_merge, merge_path_v2) {
-    std::vector<cl::Platform> platforms;
-    cl::Platform::get(&platforms);
-    if (platforms.empty()) {
-        GTEST_SKIP() << "No platforms found";
+    if (!spla::get_acc_cl()) {
+        GTEST_SKIP() << "No OpenCL accelerator configured";
     }
 
-    const char* spla_opencl_platform = std::getenv(SPLA_OPENCL_PLATFORM);
-    int         platform_index       = (spla_opencl_platform ? std::atoi(spla_opencl_platform) : 0);
-
-    cl::Platform platform = platforms[platform_index];
-
-    std::cout << "Platforms: " << std::endl;
-    for (auto& it : platforms) {
-        std::cout << "- " << it.getInfo<CL_PLATFORM_NAME>() << std::endl;
-    }
-
-    std::cout << "Current platform: " << platform.getInfo<CL_PLATFORM_NAME>() << std::endl;
-
-    std::vector<cl::Device> devices;
-    platform.getDevices(CL_DEVICE_TYPE_GPU, &devices);
-    if (devices.empty()) {
-        GTEST_SKIP() << "No devices found";
-    }
-
-    const char* spla_opencl_device = std::getenv(SPLA_OPENCL_DEVICE);
-    int         device_index       = (spla_opencl_device ? std::atoi(spla_opencl_device) : 0);
-    cl::Device  device             = devices[device_index];
-
-    std::cout << "Devices: " << std::endl;
-    for (auto& it : devices) {
-        std::cout << "- " << it.getInfo<CL_DEVICE_NAME>() << std::endl;
-    }
-
-    std::cout << "Current device: " << device.getInfo<CL_DEVICE_NAME>() << std::endl;
-
-    cl::Context      context(device);
-    cl::CommandQueue queue(context);
+    auto& queue = spla::get_acc_cl()->get_queue_default();
+    auto& context = spla::get_acc_cl()->get_context();
+    auto& device = spla::get_acc_cl()->get_device();
 
     cl::Program program_gl;
-    cl::Program program_loc_v1;
     cl::Program program_loc_v2;
 
     program_gl = cl::Program(context, kernel_global);

@@ -65,11 +65,9 @@ jobs:
       matrix:
         include:
           - gpu: NVIDIA-GeForce-GT-1030
-            platform: 2
-            device: 0
+            spla-config: test_gpu_nvidia_1030
           - gpu: AMD-Radeon-RX-6750-XT
-            platform: 1
-            device: 0
+            spla-config: test_gpu_amd_6750
 
     env:
       test-file: ${{ matrix.gpu }}_tests.log
@@ -77,10 +75,11 @@ jobs:
     steps:
       - name: Run tests
         run: |
-          python3 ./run_tests.py --build-dir=${{ env.build-dir }} \
-                                 --platform=${{ matrix.platform }} \
-                                 --device=${{ matrix.device }} \
-                                 | tee ${{ env.test-file }}
+          python3 ./run_tests.py \
+            --build-dir=${{ env.build-dir }} \
+            --spla-config-file tests/ci_spla_conf.json \
+            --spla-config ${{ matrix.spla-config }} \
+            | tee ${{ env.test-file }}
 
       - name: Upload tests resutls
         uses: actions/upload-artifact@v4

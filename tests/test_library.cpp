@@ -29,23 +29,6 @@
 
 #include <spla.hpp>
 
-TEST(library, default_log) {
-    spla::Library::get()->set_default_callback();
-    spla::Library::get()->finalize();
-}
-
-TEST(library, default_accelerator) {
-    spla::Library::get()->set_accelerator(spla::AcceleratorType::OpenCL);
-    spla::Library::get()->finalize();
-}
-
-TEST(library, default_accelerator_select_props) {
-    spla::Library::get()->set_accelerator(spla::AcceleratorType::OpenCL);
-    spla::Library::get()->set_platform(1);
-    spla::Library::get()->set_device(0);
-    spla::Library::get()->finalize();
-}
-
 TEST(library, default_types) {
     EXPECT_EQ(spla::INT->get_size(), 4);
     EXPECT_EQ(spla::UINT->get_size(), 4);
@@ -54,16 +37,6 @@ TEST(library, default_types) {
     std::cout << "Type " << spla::INT->get_description() << " id=" << spla::INT->get_id() << std::endl;
     std::cout << "Type " << spla::UINT->get_description() << " id=" << spla::UINT->get_id() << std::endl;
     std::cout << "Type " << spla::FLOAT->get_description() << " id=" << spla::FLOAT->get_id() << std::endl;
-}
-
-TEST(library, default_accelerator_info) {
-    std::string acc_info;
-
-    spla::Library::get()->set_accelerator(spla::AcceleratorType::OpenCL);
-    spla::Library::get()->get_accelerator_info(acc_info);
-    spla::Library::get()->finalize();
-
-    std::cout << "Info: " << acc_info << std::endl;
 }
 
 SPLA_GTEST_MAIN
